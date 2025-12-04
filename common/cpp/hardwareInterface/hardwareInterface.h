@@ -9,11 +9,16 @@
 
 namespace empower
 {
+    // Forward declaration
+    class fpgaHardwareManager;
     /**
      * @brief      This class describes a hardware interface.
      */
     class hardwareInterface
     {
+        // Allow fpgaHardwareManager to create instances
+        friend class fpgaHardwareManager;
+
     public:
         using reg_t = helpers::types::reg_t;
         using mmData_t = helpers::types::mmData_t;

@@ -81,7 +81,7 @@ hardwareInterface::~hardwareInterface()
  * @param[in]  offset  The offset
  * @param[in]  mask    The data mask
  *
- * @return     The read data if sucessful, std::nullopt otherwise.
+ * @return     The read data if successful, std::nullopt otherwise.
  */
 std::optional<hardwareInterface::mmData_t> hardwareInterface::read(const reg_t offset,
     const mmData_t mask) noexcept
@@ -102,7 +102,7 @@ std::optional<hardwareInterface::mmData_t> hardwareInterface::read(const reg_t o
  * @param[in]  start  The start address
  * @param[in]  stop   The stop address
  *
- * @return     The read data if sucessful, std::nullopt otherwise.
+ * @return     The read data if successful, std::nullopt otherwise.
  */
 std::optional<std::vector<hardwareInterface::mmData_t>> hardwareInterface::readRange(const reg_t start,
     const reg_t stop) noexcept
@@ -194,9 +194,9 @@ bool hardwareInterface::write(const reg_t offset, const mmData_t val, const mmDa
     {
         return false;
     }
-    //auto now = std::chrono::system_clock::now();
-   // auto time_t_now = std::chrono::system_clock::to_time_t(now);
-    //syslog(LOG_INFO, "FPGA Write - Address: 0x%lx, Time: %s, Value: %u, Mask: %u", offset, std::ctime(&time_t_now), val, mask);
+    auto now = std::chrono::system_clock::now();
+    auto time_t_now = std::chrono::system_clock::to_time_t(now);
+    syslog(LOG_INFO, "FPGA Write - Address: 0x%lx, Time: %s, Value: %u, Mask: %u", offset, std::ctime(&time_t_now), val, mask);
     return true;
 }
 
