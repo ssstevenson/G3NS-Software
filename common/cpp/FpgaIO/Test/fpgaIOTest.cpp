@@ -3,8 +3,8 @@
 #include <chrono>  // For std::chrono::milliseconds
 #include <iomanip>
 
-#include "fpgaIO.h"
-#include "fpgaDefs.h"
+#include "../fpgaIO.h"
+#include "../fpgaDefs.h"
 
 #define REG_OFFSET     0x00000008    //Test Register
 
