@@ -1,0 +1,9 @@
+{
+  "copyFiles": [
+    {
+      "from": "../build/bin/moduleManager",
+      "to": "bin/moduleManager",
+      "targetPermission": "0755"
+    }
+  ]
+}

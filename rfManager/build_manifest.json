@@ -1,0 +1,9 @@
+{
+  "copyFiles": [
+    {
+      "from": "../build/bin/rfManager",
+      "to": "bin/rfManager",
+      "targetPermission": "0755"
+    }
+  ]
+}

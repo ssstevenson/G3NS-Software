@@ -1,0 +1,9 @@
+{
+  "copyFiles": [
+    {
+      "from": "../build/bin/environmentManager",
+      "to": "bin/environmentManager",
+      "targetPermission": "0755"
+    }
+  ]
+}

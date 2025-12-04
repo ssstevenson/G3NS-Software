@@ -1,0 +1,9 @@
+{
+  "copyFiles": [
+    {
+      "from": "../build/bin/fpgaHardwareInterface",
+      "to": "bin/fpgaHardwareInterface",
+      "targetPermission": "0755"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "copyFiles": [
+    {
+      "from": "../build/bin/switchManager",
+      "to": "bin/switchManager",
+      "targetPermission": "0755"
+    }
+  ]
+}

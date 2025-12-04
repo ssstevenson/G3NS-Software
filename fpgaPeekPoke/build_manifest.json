@@ -1,0 +1,9 @@
+{
+  "copyFiles": [
+    {
+      "from": "../build/bin/fpgaPeekPoke",
+      "to": "bin/fpgaPeekPoke",
+      "targetPermission": "0755"
+    }
+  ]
+}

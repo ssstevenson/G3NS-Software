@@ -1,0 +1,9 @@
+{
+  "copyFiles": [
+    {
+      "from": "../build/bin/mqttInterface",
+      "to": "bin/mqttInterface",
+      "targetPermission": "0755"
+    }
+  ]
+}

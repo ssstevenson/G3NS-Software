@@ -1,0 +1,226 @@
+{
+    "sockets": [
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getTicker100ms",
+            "socketName": "ticker100ms",
+            "description": "Publisher socket used for async 100ms tasks."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getTicker500ms",
+            "socketName": "ticker500ms",
+            "description": "Publisher socket used for async 500ms tasks."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getTicker1000ms",
+            "socketName": "ticker1000ms",
+            "description": "Publisher socket used for async 1000ms tasks."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getTicker5000ms",
+            "socketName": "ticker5000ms",
+            "description": "Publisher socket used for async 5000ms tasks."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getTicker30000ms",
+            "socketName": "ticker30000ms",
+            "description": "Publisher socket used for async 30000ms tasks."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getLogger",
+            "socketName": "logger",
+            "description": "Pull socket used by the System Logger to receive log messages."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getLoggerAPI",
+            "socketName": "loggerAPI",
+            "description": "Req/Reply socket used to interface directly with the System Logger."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getFpgaHardwareInterfaceAPI",
+            "socketName": "fpgaHardwareInterfaceAPI",
+            "description": "Req/Reply socket used to interface the FPGA Hardware Interface process."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getSerialPmodInterfaceAPI",
+            "socketName": "serialPmodInterfaceAPI",
+            "description": "Req/Reply socket used to interface to the onboard PMOD UART."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getSerialPsuInterfaceAPI",
+            "socketName": "serialPsuInterfaceAPI",
+            "description": "Req/Reply socket used to interface to the onboard PSU UART."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getSerialRmtInterfaceAPI",
+            "socketName": "serialRmtInterfaceAPI",
+            "description": "Req/Reply socket used to interface to the onboard Remote UART."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getSerialFPInterfaceAPI",
+            "socketName": "serialFPInterfaceAPI",
+            "description": "Req/Reply socket used to interface to the onboard Front Panel UART."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getSerialRPInterfaceAPI",
+            "socketName": "serialRPInterfaceAPI",
+            "description": "Req/Reply socket used to interface to the onboard Rear Panel UART."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getHeartbeatRequest",
+            "socketName": "heartbeatRequest",
+            "description": "Publisher socket which carries the software heartbeat monitor request."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getHeartbeatResponse",
+            "socketName": "heartbeatResponse",
+            "description": "Pull socket which carries the software heartbeat monitor response from each worker process."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getHeartbeatAPI",
+            "socketName": "heartbeatAPI",
+            "description": "Req/Reply socket which allows access to the Software Heartbeat Monitor process."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getMessageFactoryAPI",
+            "socketName": "messageFactoryAPI",
+            "description": "Req/Reply socket to talk directly to the Message Factory."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getStatusUpdateBroadcast",
+            "socketName": "statusUpdateBroadcast",
+            "description": "Publisher socket which broadcasts all status updates received by the Status Processor."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getStatusUpdate",
+            "socketName": "statusUpdate",
+            "description": "Pull socket which carries all status updates from worker processes to Localhost Redis or SOS Redis."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getStatusProcessorAPI",
+            "socketName": "statusProcessorAPI",
+            "description": "Req/Reply socket to interface directly with Process Manager."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getWorkerCommandRequest",
+            "socketName": "workerCommandRequest",
+            "description": "Publisher socket which emits all commands to each worker process."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getWorkerCommandResponse",
+            "socketName": "workerCommandResponse",
+            "description": "Pull socket which carries all command completion messages to Status Processor."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getConfigChangeNotify",
+            "socketName": "configChangeNotify",
+            "description": "Publisher socket which emits change notifications from the Configuration Manager."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getConfigurationManagerAPI",
+            "socketName": "configurationManagerAPI",
+            "description": "Req/reply socket to directly interface with Configuration Manager."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getCommandProcessorInternal",
+            "socketName": "commandProcessorInternal",
+            "description": "Pull socket which accepts commands from internal worker processes."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getCommandProcessorInternalAPI",
+            "socketName": "commandProcessorInternalAPI",
+            "description": "Request/Reply socket to use when an internal command response is required."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getCommandProcessorM2MTcpAPI",
+            "socketName": "commandProcessorM2MTcpAPI",
+            "description": "Req/Reply socket for the M2M via TCP parser."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getCommandProcessorM2MUdpAPI",
+            "socketName": "commandProcessorM2MUdpAPI",
+            "description": "Req/Reply socket for the M2M via UDP parser."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getCommandProcessorM2MSerialAPI",
+            "socketName": "commandProcessorM2MSerialAPI",
+            "description": "Req/Reply socket for the M2M via Serial parser."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getCommandProcessorWebRemoteAPI",
+            "socketName": "commandProcessorWebRemoteAPI",
+            "description": "Req/Reply socket for the remote GUI."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getCommandProcessorWebLocalAPI",
+            "socketName": "commandProcessorWebLocalAPI",
+            "description": "Req/Reply socket for the local (front panel) GUI."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getCommandCompleteBroadcast",
+            "socketName": "commandCompleteBroadcast",
+            "description": "Publisher socket which emits command completion messages from Status Processor."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getProcessManagerAPI",
+            "socketName": "processManagerAPI",
+            "description": "Req/Reply socket which allows direct communication with the Process Manager."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getPsuManagerAPI",
+            "socketName": "psuManagerAPI",
+            "description": "Req/Reply socket which allows direct communication with the PSU Manager."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getSystemManagerAPI",
+            "socketName": "systemManagerAPI",
+            "description": "Req/Reply socket which allows direct communication with the System Manager."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getFaultManagerAPI",
+            "socketName": "faultManagerAPI",
+            "description": "Req/Reply socket which allows direct communication with the Fault Manager."
+        },
+        {
+            "socketPrefix": "ipc:///tmp/",
+            "functionName": "getProfileManagerAPI",
+            "socketName": "profileManagerAPI",
+            "description": "Req/Reply socket which allows direct communication with the Profile Manager."
+        }
+    ]
+}

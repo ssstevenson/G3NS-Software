@@ -1,0 +1,9 @@
+{
+  "copyFiles": [
+    {
+      "from": "../build/bin/serialHardwareInterface",
+      "to": "bin/serialHardwareInterface",
+      "targetPermission": "0755"
+    }
+  ]
+}

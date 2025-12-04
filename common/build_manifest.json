@@ -1,0 +1,59 @@
+{
+  "copyFiles": [
+    {
+      "from": "socketNames.json",
+      "to": "includes/socketNames.json",
+      "targetPermission": "0644"
+    },
+    {
+      "from": "php/helpers/commonFunctions.php",
+      "to": "bin/helpers/commonFunctions.php",
+      "targetPermission": "0444"
+    },
+    {
+      "from": "php/helpers/SqliteHelper.php",
+      "to": "bin/helpers/SqliteHelper.php",
+      "targetPermission": "0444"
+    },
+    {
+      "from": "php/helpers/SocketCoordinatorSingleton.php",
+      "to": "bin/helpers/SocketCoordinatorSingleton.php",
+      "targetPermission": "0444"
+    },
+    {
+      "from": "php/helpers/TraitClassCommon.php",
+      "to": "bin/helpers/TraitClassCommon.php",
+      "targetPermission": "0444"
+    },
+    {
+      "from": "php/helpers/CalibrationDataManager.php",
+      "to": "bin/helpers/CalibrationDataManager.php",
+      "targetPermission": "0444"
+    },
+    {
+      "from": "php/helpers/BrainboxED/BrainboxED.php",
+      "to": "bin/helpers/BrainboxED/BrainboxED.php",
+      "targetPermission": "0444"
+    },
+    {
+      "from": "php/helpers/BrainboxED/BrainboxED588.php",
+      "to": "bin/helpers/BrainboxED/BrainboxED588.php",
+      "targetPermission": "0444"
+    },
+    {
+      "from": "php/helpers/BrainboxED/BrainboxED549.php",
+      "to": "bin/helpers/BrainboxED/BrainboxED549.php",
+      "targetPermission": "0444"
+    },
+    {
+      "from": "php/helpers/BrainboxED/BrainboxED560.php",
+      "to": "bin/helpers/BrainboxED/BrainboxED560.php",
+      "targetPermission": "0444"
+    },
+    {
+      "from": "php/helpers/BrainboxED/BrainboxToRS485.php",
+      "to": "bin/helpers/BrainboxED/BrainboxToRS485.php",
+      "targetPermission": "0444"
+    }
+  ]
+}

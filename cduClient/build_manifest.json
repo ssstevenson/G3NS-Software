@@ -1,0 +1,14 @@
+{
+  "copyFiles": [
+    {
+      "from": "../build/bin/cduClient",
+      "to": "bin/cduClient",
+      "targetPermission": "0755"
+    },
+    {
+      "from": "config/Pump.Config",
+      "to": "config/Pump.Config",
+      "targetPermission": "0644"
+    }
+  ]
+}

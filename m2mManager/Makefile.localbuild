@@ -1,0 +1,29 @@
+LIBS =  -pthread -lpthread -lrt
+OPT = -O2 -fstack-protector-strong -D_FORTIFY_SOURCE=2 -Wformat -Wformat-security -Werror=format-security
+
+# Compiler
+# CXX = g++
+# Compiler flags
+CXXFLAGS += -std=c++17 -Wall $(OPT) $(INCLUDES) 
+CPPFLAGS += -std=c++17 -Wall $(OPT) $(INCLUDES) 
+# Executable name
+TARGET = M2MSERVER
+# Source files
+SOURCES = $(wildcard *.cpp)
+# Object files
+OBJECTS = $(SOURCES:.cpp=.o)
+
+# Default target
+all: $(TARGET)
+
+# Link object files to create the executable
+$(TARGET): $(OBJECTS)
+	$(CXX) $(CXXFLAGS) -o $(TARGET) $(OBJECTS) $(LIBS)
+
+# Compile source files to object files
+%.o: %.cpp
+	$(CXX)  $(CXXFLAGS)  -c $< -o $@
+
+# Clean build files
+clean:
+	rm -f $(TARGET) $(OBJECTS)
