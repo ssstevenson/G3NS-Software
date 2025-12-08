@@ -54,7 +54,7 @@ int AckSocket::createServerSocket() {
         ack_addr.sin_port = htons(ackport);
         ack_addr.sin_addr.s_addr = INADDR_ANY;
 
-        ret = bind(ack_sock, (sockaddr*)&ack_addr, sizeof(ack_addr));
+        ret = bind(ack_sock, reinterpret_cast<sockaddr*>(&ack_addr), sizeof(ack_addr));
         if (ret < 0 ) {
            syslog(LOG_ERR, "[%s] Error Binding to Socket", __FUNCTION__);
            ::close(ack_sock);
@@ -107,7 +107,7 @@ int AckSocket::reply( void *msg, int msgLen,  unsigned int senderIp, uint16_t se
     reply_addr.sin_port = htons(senderPort);
     reply_addr.sin_addr.s_addr = htonl(senderIp);
 
-    long int nbytes = sendto(ack_sock, msg, static_cast <size_t> ( msgLen) , 0, (sockaddr*)&reply_addr, sizeof(reply_addr));
+    long int nbytes = sendto(ack_sock, msg, static_cast <size_t> ( msgLen) , 0, reinterpret_cast<sockaddr*>(&reply_addr), sizeof(reply_addr));
 
     if ( nbytes < 0) {
          openSocket();
@@ -141,7 +141,7 @@ int AckSocket::getMyIPAddress()
 
     close(fd);
 
-    struct sockaddr_in* ipaddr = (struct sockaddr_in*)&ifr.ifr_addr;
+    struct sockaddr_in* ipaddr = reinterpret_cast<struct sockaddr_in*>(&ifr.ifr_addr);
 
     // IP as 32-bit integer in host byte order
     myIp = ntohl(ipaddr->sin_addr.s_addr);
@@ -185,7 +185,7 @@ int AckSocket::waitForReply(  AckPacket &reply, long int &recvBytes)
             sockaddr_in senderAddr{};
             socklen_t senderLen = sizeof(senderAddr);
 
-            long int rc = recvfrom(ack_sock, &reply, sizeof(reply) , 0, (sockaddr*)&senderAddr, &senderLen);
+            long int rc = recvfrom(ack_sock, &reply, sizeof(reply) , 0, reinterpret_cast<sockaddr*>(&senderAddr), &senderLen);
 
             if (rc < 0 )
             {

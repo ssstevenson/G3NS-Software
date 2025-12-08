@@ -3,18 +3,18 @@ cmake_minimum_required(VERSION 3.10)
 function(setup_target TAR BASE_DIR)
     set(COMMON_DIR ${BASE_DIR}/common/cpp)
 
-    file(GLOB common_sources
+    file(GLOB_RECURSE common_sources
         "${COMMON_DIR}/*/*.h"
         "${COMMON_DIR}/*/*.cpp"
     )
 
-    file(GLOB local_sources
+    file(GLOB_RECURSE local_sources
         "${BASE_DIR}/${TAR}/*/*.h"
         "${BASE_DIR}/${TAR}/*/*.cpp"
     )
 
     add_executable(${TAR}
-        ${TAR}.cpp
+#        ${TAR}.cpp
         ${common_sources}
         ${local_sources}
     )
@@ -30,7 +30,7 @@ function(setup_target TAR BASE_DIR)
         -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wnull-dereference -Wuseless-cast -Wdouble-promotion
         -Wformat=2 -Weffc++ -g -pipe -flto -Xlinker -Map=${TAR}.map)
 
-    target_link_libraries(${TAR} PUBLIC dl zmq pthread)
+    target_link_libraries(${TAR} PUBLIC dl zmq pthread rt)
 
     install(TARGETS ${THIS_TARGET} DESTINATION ${BASE_DIR}/build/bin/)
 endfunction()
