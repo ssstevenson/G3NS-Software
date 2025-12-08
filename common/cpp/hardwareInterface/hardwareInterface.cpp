@@ -81,7 +81,7 @@ hardwareInterface::~hardwareInterface()
  * @param[in]  offset  The offset
  * @param[in]  mask    The data mask
  *
- * @return     The read data if successful, std::nullopt otherwise.
+ * @return     The read data if sucessful, std::nullopt otherwise.
  */
 std::optional<hardwareInterface::mmData_t> hardwareInterface::read(const reg_t offset,
     const mmData_t mask) noexcept
@@ -102,7 +102,7 @@ std::optional<hardwareInterface::mmData_t> hardwareInterface::read(const reg_t o
  * @param[in]  start  The start address
  * @param[in]  stop   The stop address
  *
- * @return     The read data if successful, std::nullopt otherwise.
+ * @return     The read data if sucessful, std::nullopt otherwise.
  */
 std::optional<std::vector<hardwareInterface::mmData_t>> hardwareInterface::readRange(const reg_t start,
     const reg_t stop) noexcept
