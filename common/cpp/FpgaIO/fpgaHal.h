@@ -1,3 +1,5 @@
+
+#pragma once
 #include <iostream>
 #include <fcntl.h>
 #include <sys/mman.h>

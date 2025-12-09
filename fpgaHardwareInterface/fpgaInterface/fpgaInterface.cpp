@@ -8,10 +8,6 @@
 #include <chrono>
 #include <ctime>
 
-#ifdef syslog
-#undef syslog
-#endif
-#define syslog(...) ((void)0)
 
 using namespace empower;
 
@@ -150,6 +146,7 @@ void fpgaInterface::jsonRead(rapidjson::Document& jsonDoc)
                 const reg_t pageAddr = address.value() & pageMask;
                 const reg_t offset = address.value() & ~pageMask;
 
+                // Call Hardware Interface Read
                 if(auto data{getHwIf(pageAddr)->read(offset)}; data.has_value())
                 {
                     helpers::setupJsonResponse(jsonDoc, readResponseJsonStr);
@@ -315,10 +312,8 @@ void fpgaInterface::jsonWrite(rapidjson::Document& jsonDoc)
                 auto hwIfPtr{getHwIf(pageAddr)};
 
                 // Log write operation with timestamp
-#ifndef syslog
                 auto now = std::chrono::system_clock::now();
                 auto time_t_now = std::chrono::system_clock::to_time_t(now);
-#endif
                 syslog(LOG_DEBUG, "FPGA Write - Address: 0x%lx, Time: %s, value: %u", address.value(), std::ctime(&time_t_now),  writeVal.value());
 
                 if(hwIfPtr->write(offset, writeVal.value()))
@@ -391,10 +386,8 @@ void fpgaInterface::jsonWriteBatch(rapidjson::Document& jsonDoc)
                             auto hwIfPtr{getHwIf(pageAddr)};
 
                             // Log write operation with timestamp
-#ifndef syslog
                             auto now = std::chrono::system_clock::now();
                             auto time_t_now = std::chrono::system_clock::to_time_t(now);
-#endif
                             syslog(LOG_DEBUG, "FPGA Write - Address: 0x%lx, Time: %s, value: %u", address.value(), std::ctime(&time_t_now),  writeVal.value());
 
                             if(hwIfPtr->write(offset, writeVal.value()))
@@ -487,10 +480,8 @@ void fpgaInterface::jsonWriteRange(rapidjson::Document& jsonDoc)
                             std::back_inserter(mmDataVec), [](const auto& d){ return d.value(); });
 
                         // Log range write operation with timestamp
-#ifndef syslog
                         auto now = std::chrono::system_clock::now();
                         auto time_t_now = std::chrono::system_clock::to_time_t(now);
-#endif
                         syslog(LOG_DEBUG, "FPGA Range Write - Start Address: 0x%lx, End Address: 0x%lx, Time: %s",
                             start.value(), end, std::ctime(&time_t_now));
 
