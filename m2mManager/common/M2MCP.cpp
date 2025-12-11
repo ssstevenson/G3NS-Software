@@ -959,7 +959,7 @@ void M2MC_CP::getSoftwareAndFirmware()
 void M2MC_CP::startNotificationThread()
 {
     // Start Notification Thread
-    pthread_create (&notifThread, NULL,  notification_thread, (void *) this);
+    pthread_create (&notifThread, NULL,  notification_thread,  static_cast<void *>(this));
     //
 }
 void  *M2MC_CP::notification_thread(void * ptr)

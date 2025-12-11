@@ -36,7 +36,7 @@ void BaseSocket::fillAddr(const string &address, unsigned short port,  sockaddr_
   }
   else
   {
-        addr.sin_addr.s_addr = *((unsigned long *) host->h_addr_list[0]);
+        addr.sin_addr.s_addr = *( reinterpret_cast<unsigned long *> (host->h_addr_list[0]));
   }
 
   addr.sin_port = htons(port);     // Assign port in network byte order
@@ -72,7 +72,7 @@ string BaseSocket::getLocalAddress() noexcept
   sockaddr_in addr;
   unsigned int addr_len = sizeof(addr);
 
-  if (getsockname(sockDesc, (sockaddr *) &addr,  &addr_len) < 0)
+  if (getsockname(sockDesc,  reinterpret_cast<sockaddr *> ( &addr),  &addr_len) < 0)
   {
     printf("Fetch of local address failed (getsockname())\n");
   }
@@ -84,7 +84,7 @@ unsigned short BaseSocket::getLocalPort() noexcept
   sockaddr_in addr;
   unsigned int addr_len = sizeof(addr);
 
-  if (getsockname(sockDesc, (sockaddr *) &addr,  &addr_len) < 0)
+  if (getsockname(sockDesc,  reinterpret_cast<sockaddr *> ( &addr),  &addr_len) < 0)
   {
     printf("Fetch of local port failed (getsockname())\n");
   }
@@ -118,7 +118,7 @@ void BaseSocket::setLocalPort(unsigned short localPort) noexcept
 
   }
 
-  if (bind(sockDesc, (sockaddr *) &localAddr, sizeof(sockaddr_in)) < 0)
+  if (bind(sockDesc, reinterpret_cast<sockaddr *> ( &localAddr), sizeof(sockaddr_in)) < 0)
   {
     printf("Set of local port failed (bind()) \n");
   }
@@ -130,7 +130,7 @@ void BaseSocket::setLocalAddressAndPort(const string &localAddress,  unsigned sh
     sockaddr_in localAddr;
     fillAddr(localAddress, localPort, localAddr);
 
-    if (bind(sockDesc, (sockaddr *) &localAddr, sizeof(sockaddr_in)) < 0)
+    if (bind(sockDesc, reinterpret_cast<sockaddr *> ( &localAddr), sizeof(sockaddr_in)) < 0)
     {
         printf("Set of local address and port failed (bind()) \n");
     }
@@ -191,7 +191,7 @@ int CommunicatingSocket::connect(const string &foreignAddress, unsigned short fo
     fillAddr(foreignAddress, foreignPort, destAddr);
 
     // Try to connect to the given port
-    int ret = ::connect(sockDesc, (sockaddr *) &destAddr, sizeof(destAddr));
+    int ret = ::connect(sockDesc,  reinterpret_cast<sockaddr *> ( &destAddr), sizeof(destAddr));
 
     return ret;
 }
@@ -199,7 +199,7 @@ int CommunicatingSocket::connect(const string &foreignAddress, unsigned short fo
 int CommunicatingSocket::send(const void *buffer, long unsigned int bufferLen, int flag)   noexcept
 {
      int rtn = 0;
-    rtn = ::send(sockDesc, (raw_type *) buffer, bufferLen, flag) ;
+    rtn = ::send(sockDesc, const_cast<raw_type *>(buffer), bufferLen, flag) ;
     return rtn;
 
 }
@@ -216,7 +216,7 @@ string CommunicatingSocket::getForeignAddress() noexcept
     sockaddr_in addr;
     unsigned int addr_len = sizeof(addr);
 
-    if (getpeername(sockDesc, (sockaddr *) &addr, &addr_len) < 0)
+    if (getpeername(sockDesc, reinterpret_cast<sockaddr *> ( &addr), &addr_len) < 0)
     {
         printf("Fetch of foreign address failed (getpeername())\n");
     }
@@ -228,7 +228,7 @@ unsigned short CommunicatingSocket::getForeignPort() noexcept
     sockaddr_in addr;
     unsigned int addr_len = sizeof(addr);
 
-    if (getpeername(sockDesc, (sockaddr *) &addr,  &addr_len) < 0)
+    if (getpeername(sockDesc, reinterpret_cast<sockaddr *> ( &addr),  &addr_len) < 0)
     {
         printf("Fetch of foreign port failed (getpeername())\n");
     }
@@ -315,7 +315,7 @@ void UDPSocket::setBroadcast()
     // If this fails, we'll hear about it when we try to send.  This will allow
     // system that cannot broadcast to continue if they don't plan to broadcast
     int broadcastPermission = 1;
-    setsockopt(sockDesc, SOL_SOCKET, SO_BROADCAST, (raw_type *) &broadcastPermission, sizeof(broadcastPermission));
+    setsockopt(sockDesc, SOL_SOCKET, SO_BROADCAST,  static_cast<raw_type *> (&broadcastPermission), sizeof(broadcastPermission));
 }
 
 void UDPSocket::disconnect()
@@ -325,7 +325,7 @@ void UDPSocket::disconnect()
     nullAddr.sin_family = AF_UNSPEC;
 
     // Try to disconnect
-    if (::connect(sockDesc, (sockaddr *) &nullAddr, sizeof(nullAddr)) < 0)
+    if (::connect(sockDesc, reinterpret_cast<sockaddr *> ( &nullAddr), sizeof(nullAddr)) < 0)
     {
         if (errno != EAFNOSUPPORT)
         {
@@ -342,7 +342,7 @@ int UDPSocket::sendTo(const void *buffer, int bufferLen, const string &foreignAd
     int len;
 
     // Write out the whole buffer as a single message.
-    if ( (len=sendto(sockDesc, (raw_type *) buffer, bufferLen, 0,   (sockaddr *) &destAddr, sizeof(destAddr)) )!= bufferLen)
+    if ( (len=sendto(sockDesc, const_cast<raw_type *>(buffer), bufferLen, 0,   reinterpret_cast<sockaddr *> ( &destAddr), sizeof(destAddr)) )!= bufferLen)
     {
         printf("Send failed (sendto()) \n");
     }
@@ -355,7 +355,7 @@ int UDPSocket::recvFrom(void *buffer, int bufferLen, string &sourceAddress, unsi
     sockaddr_in clntAddr;
     socklen_t addrLen = sizeof(clntAddr);
     int rtn;
-    if ((rtn = recvfrom(sockDesc,  buffer, bufferLen, 0, (sockaddr *) &clntAddr, &addrLen)) < 0)
+    if ((rtn = recvfrom(sockDesc,  buffer, bufferLen, 0, reinterpret_cast<sockaddr *> ( &clntAddr), &addrLen)) < 0)
     {
        printf("Receive failed (recvfrom()) \n");
     }
@@ -367,7 +367,7 @@ int UDPSocket::recvFrom(void *buffer, int bufferLen, string &sourceAddress, unsi
 
 void UDPSocket::setMulticastTTL(unsigned char multicastTTL) noexcept
 {
-    if (setsockopt(sockDesc, IPPROTO_IP, IP_MULTICAST_TTL, (raw_type *) &multicastTTL, sizeof(multicastTTL)) < 0)
+    if (setsockopt(sockDesc, IPPROTO_IP, IP_MULTICAST_TTL,  static_cast<raw_type *> (&multicastTTL), sizeof(multicastTTL)) < 0)
     {
         printf("Multicast TTL set failed (setsockopt()) \n");
     }
@@ -379,7 +379,7 @@ void UDPSocket::joinGroup(const string &multicastGroup)
 
     multicastRequest.imr_multiaddr.s_addr = inet_addr(multicastGroup.c_str());
     multicastRequest.imr_interface.s_addr = htonl(INADDR_ANY);
-    if (setsockopt(sockDesc, IPPROTO_IP, IP_ADD_MEMBERSHIP,(raw_type *) &multicastRequest, sizeof(multicastRequest)) < 0)
+    if (setsockopt(sockDesc, IPPROTO_IP, IP_ADD_MEMBERSHIP, static_cast<raw_type *> (&multicastRequest), sizeof(multicastRequest)) < 0)
     {
         printf("Multicast group join failed (setsockopt()) \n");
     }
@@ -391,7 +391,7 @@ void UDPSocket::leaveGroup(const string &multicastGroup)
 
     multicastRequest.imr_multiaddr.s_addr = inet_addr(multicastGroup.c_str());
     multicastRequest.imr_interface.s_addr = htonl(INADDR_ANY);
-    if (setsockopt(sockDesc, IPPROTO_IP, IP_DROP_MEMBERSHIP, (raw_type *) &multicastRequest,sizeof(multicastRequest)) < 0)
+    if (setsockopt(sockDesc, IPPROTO_IP, IP_DROP_MEMBERSHIP,  static_cast<raw_type *> (&multicastRequest),sizeof(multicastRequest)) < 0)
     {
         printf("Multicast group leave failed (setsockopt()) \n");
     }

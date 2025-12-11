@@ -150,6 +150,7 @@ void fpgaInterface::jsonRead(rapidjson::Document& jsonDoc)
                 const reg_t pageAddr = address.value() & pageMask;
                 const reg_t offset = address.value() & ~pageMask;
 
+                // Call Hardware Interface Read
                 if(auto data{getHwIf(pageAddr)->read(offset)}; data.has_value())
                 {
                     helpers::setupJsonResponse(jsonDoc, readResponseJsonStr);
@@ -485,7 +486,7 @@ void fpgaInterface::jsonWriteRange(rapidjson::Document& jsonDoc)
                         // Log range write operation with timestamp
                         auto now = std::chrono::system_clock::now();
                         auto time_t_now = std::chrono::system_clock::to_time_t(now);
-                        syslog(LOG_DEBUG, "FPGA Range Write - Start Address: 0x%lx, End Address: 0x%lx, Time: %s", 
+                        syslog(LOG_DEBUG, "FPGA Range Write - Start Address: 0x%lx, End Address: 0x%lx, Time: %s",
                             start.value(), end, std::ctime(&time_t_now));
 
                         if(hwIfPtr->writeRange(startOffset, mmDataVec))

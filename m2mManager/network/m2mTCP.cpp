@@ -61,7 +61,7 @@ M2MTCP::M2MTCP():TCPServerSocket(M2M_TCP_PORT),
 void M2MTCP::startThread()
 {
     printf(".......starting M2M  TCP  Server  Thread .......\n");
-    pthread_create (&this->myThread, NULL,  M2MTCPMain, (void *) this);
+    pthread_create (&this->myThread, NULL,  M2MTCPMain,  static_cast<void *> ( this));
     //
 }
 //

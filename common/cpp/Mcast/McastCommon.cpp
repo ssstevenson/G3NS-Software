@@ -141,7 +141,7 @@ int Mcast::createListnerSocket()
         addr.sin_port = htons(mcast_port);
         addr.sin_addr.s_addr = INADDR_ANY;
 
-        ret = bind(mcast_socket, (sockaddr*)&addr, sizeof(addr));
+        ret = bind(mcast_socket, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
     }
 
     if ( ret == 0 ) {
@@ -162,7 +162,7 @@ int  Mcast::joinGroup()
     inet_pton(AF_INET, mcat_address.c_str(), &multicastRequest.imr_multiaddr);
     multicastRequest.imr_interface.s_addr = htonl(INADDR_ANY);
 
-    int ret = setsockopt(mcast_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, (const void*)&multicastRequest, sizeof(multicastRequest));
+    int ret = setsockopt(mcast_socket, IPPROTO_IP, IP_ADD_MEMBERSHIP, static_cast<const void*>(&multicastRequest), sizeof(multicastRequest));
     if (ret == 0 ) {
         joined = true;
     }
@@ -179,7 +179,7 @@ int  Mcast::leaveGroup()
     inet_pton(AF_INET, mcat_address.c_str(), &multicastRequest.imr_multiaddr);
     multicastRequest.imr_interface.s_addr = htonl(INADDR_ANY);
    if (joined) {
-       ret =  setsockopt(mcast_socket, IPPROTO_IP, IP_DROP_MEMBERSHIP,  (const void*) &multicastRequest,sizeof(multicastRequest) );
+       ret =  setsockopt(mcast_socket, IPPROTO_IP, IP_DROP_MEMBERSHIP,  static_cast<const void*>(&multicastRequest),sizeof(multicastRequest) );
        joined = false;
    }
    return ret;
@@ -208,7 +208,7 @@ int Mcast::sendMcastMessage( const void *cmd, int cmdlen )
     long int ret = -1;
     if (mcast_socket)
     {
-       ret = sendto(mcast_socket, cmd, static_cast <size_t> (cmdlen), 0, (sockaddr*)&multicast_addr, sizeof(multicast_addr));
+       ret = sendto(mcast_socket, cmd, static_cast <size_t> (cmdlen), 0, reinterpret_cast<sockaddr*>(&multicast_addr), sizeof(multicast_addr));
     }
     return ret;
 }
@@ -240,7 +240,7 @@ int Mcast::waitForMcastCommand( CommandPacket &cmdMessage, long int &recvBytes)
             sockaddr_in from{};
             socklen_t fromlen = sizeof(from);
 
-            long int rc = recvfrom(mcast_socket, &cmdMessage, sizeof(cmdMessage), 0, (sockaddr*)&from, &fromlen);
+            long int rc = recvfrom(mcast_socket, &cmdMessage, sizeof(cmdMessage), 0, reinterpret_cast<sockaddr*>(&from), &fromlen);
             if (rc < 0)
             {
                 Close();

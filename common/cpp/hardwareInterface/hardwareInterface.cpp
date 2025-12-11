@@ -19,41 +19,23 @@ using namespace empower;
  * @param[in]  length  The length in memory
  */
 hardwareInterface::hardwareInterface(reg_t base, reg_t length):
-    fd{-1},
+    FpgaIO( static_cast <unsigned int > (base),  length) ,
     addr{base},
     len{length},
     pageAddr{0},
-    pageLen{0},
-    mapping{nullptr}
+    pageLen{0}
 {
-#ifdef SIMULATE_HARDWARE
-    mapping = reinterpret_cast<volatile mmData_t*>(::malloc(len * sizeof(mmData_t)));
-    fd = 1;
-#else
-    fd = ::open("/dev/mem", O_RDWR);
-    if(fd > 0)
+    const reg_t pageSize{getPageSize()};
+    pageAddr = (addr & ~(pageSize - 1));
+    reg_t nextPageAddr = addr + len;
+    const reg_t remainderInPage = nextPageAddr % pageSize;
+    if(0 != remainderInPage)
     {
-        const reg_t pageSize{getPageSize()};
-
-        pageAddr = (addr & ~(pageSize - 1));
-
-        reg_t nextPageAddr = addr + len;
-        const reg_t remainderInPage = nextPageAddr % pageSize;
-        if(0 != remainderInPage)
-        {
-            nextPageAddr += pageSize - remainderInPage;
-        }
-        pageLen = nextPageAddr - pageAddr;
-
-        mapping = static_cast<volatile mmData_t*>(::mmap(nullptr, pageLen, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-            static_cast<__off_t>(pageAddr)));
-        if(MAP_FAILED == mapping)
-        {
-            ::close(fd);
-            mapping = nullptr;
-        }
+        nextPageAddr += pageSize - remainderInPage;
     }
-#endif
+    pageLen = nextPageAddr - pageAddr;
+
+
 }
 
 /**
@@ -61,18 +43,6 @@ hardwareInterface::hardwareInterface(reg_t base, reg_t length):
  */
 hardwareInterface::~hardwareInterface()
 {
-    if(nullptr != mapping)
-    {
-#ifdef SIMULATE_HARDWARE
-        ::free(const_cast<mmData_t*>(mapping));
-#else
-        munmap(reinterpret_cast<void*>(pageAddr), pageLen);
-    }
-    if(fd > 0)
-    {
-        ::close(fd);
-#endif
-    }
 }
 
 /**
@@ -86,14 +56,14 @@ hardwareInterface::~hardwareInterface()
 std::optional<hardwareInterface::mmData_t> hardwareInterface::read(const reg_t offset,
     const mmData_t mask) noexcept
 {
-    if(!validateAddress(offset))
-    {
-        return std::nullopt;
-    }
-
-    const reg_t readAddr{((offset + (addr - pageAddr)) % pageLen) >> 2};
-
-    return mapping[readAddr] & mask;
+   unsigned val = readReg( static_cast < std::uint32_t > (offset) );
+   if (val == std::numeric_limits<unsigned int>::max())
+   {
+       return std::nullopt;
+   } else
+   {
+       return val & mask;
+   }
 }
 
 /**
@@ -112,19 +82,14 @@ std::optional<std::vector<hardwareInterface::mmData_t>> hardwareInterface::readR
         return std::nullopt;
     }
 
-    const reg_t startIdx = (((start + (addr - pageAddr)) % pageLen) >> 2);
-    const reg_t stopIdx = (((stop + (addr - pageAddr)) % pageLen) >> 2);
+    std::vector<unsigned int > result;
+    result.reserve(stop - start + 1);
 
-    std::vector<mmData_t> result;
-    try
+    for ( reg_t regOffset = start; regOffset <= stop; regOffset++)
     {
-        std::copy(const_cast<mmData_t*>(&mapping[startIdx]), const_cast<mmData_t*>(&mapping[stopIdx]),
-            std::back_inserter(result));
+        result.push_back(readReg( static_cast <std::uint32_t> (regOffset)) );
     }
-    catch(...)
-    {
-        return std::nullopt;
-    }
+
     return result;
 }
 
@@ -136,7 +101,7 @@ std::optional<std::vector<hardwareInterface::mmData_t>> hardwareInterface::readR
  *
  * @return     The read data if sucessful, std::nullopt otherwise.
  */
-std::optional<std::vector<std::pair<hardwareInterface::reg_t, hardwareInterface::mmData_t>>>
+std::optional<std::vector<std::pair<hardwareInterface::reg_t, hardwareInterface::mmData_t> >>
     hardwareInterface::readRangeAddr(const reg_t start, const reg_t stop) noexcept
 {
     if(const std::optional<std::vector<mmData_t>> rangeData{readRange(start, stop)}; rangeData.has_value())
@@ -170,33 +135,22 @@ std::optional<std::vector<std::pair<hardwareInterface::reg_t, hardwareInterface:
  *
  * @return     True if the write was sucessful, False otherwise.
  */
-bool hardwareInterface::write(const reg_t offset, const mmData_t val, const mmData_t mask) const noexcept
+bool hardwareInterface::write(const reg_t offset, const mmData_t val, const mmData_t mask)  noexcept
 {
     if(!validateAddress(offset))
     {
         return false;
     }
 
-    const reg_t writeAddr = (((offset + (addr - pageAddr)) % pageLen) >> 2);
+   if ( mask == 0xFFFFFFFF)
+    {
+        writeReg(static_cast<std::uint32_t>(offset), val);
+    }
+    else
+    {
+        writeReg(static_cast <std::uint32_t> (offset), val, mask);
+    }
 
-    try
-    {
-        if(mask == fullMask)
-        {
-            mapping[writeAddr] = val;
-        }
-        else
-        {
-            mapping[writeAddr] = ((mapping[writeAddr] & ~mask) | (val & mask));
-        }
-    }
-    catch(...)
-    {
-        return false;
-    }
-    //auto now = std::chrono::system_clock::now();
-   // auto time_t_now = std::chrono::system_clock::to_time_t(now);
-    //syslog(LOG_INFO, "FPGA Write - Address: 0x%lx, Time: %s, Value: %u, Mask: %u", offset, std::ctime(&time_t_now), val, mask);
     return true;
 }
 
@@ -209,60 +163,31 @@ bool hardwareInterface::write(const reg_t offset, const mmData_t val, const mmDa
  *
  * @return     True if the write was sucessful, False otherwise.
  */
-bool hardwareInterface::writeRange(const reg_t offset, const std::vector<mmData_t>& data, const mmData_t mask) const noexcept
+bool hardwareInterface::writeRange(const reg_t offset, const std::vector<mmData_t>& data, const mmData_t mask)  noexcept
 {
-    reg_t writeAddr{((offset + (addr - pageAddr)) % pageLen) >> 2};
-    const reg_t stop{writeAddr + data.size()};
+
+    const reg_t stop{offset + data.size() -1 };
 
     if(!validateAddress(offset) || !validateAddress(stop) || data.empty())
     {
         return false;
     }
-
-    try
+    std::uint32_t writeAddr =  static_cast <std::uint32_t> (offset);
+    if (mask == fullMask)
     {
-        if(mask == fullMask)
-        {
-            std::for_each(data.begin(), data.end(), [&](const auto& datum){
-                mapping[writeAddr++] = datum;
-            });
-        }
-        else
-        {
-            std::for_each(data.begin(), data.end(), [&](const auto& datum){
-                mapping[writeAddr] = ((mapping[writeAddr] & ~mask) | (datum & mask));
-                ++writeAddr;
-            });
-        }
+        for (auto datum : data)
+            writeReg(writeAddr++, datum );
     }
-    catch(...)
+    else
     {
-        return false;
+        for (auto datum : data)
+            writeReg(writeAddr++, datum , mask);
     }
 
     return true;
 }
 
-/**
- * @brief      Checks if the Setup is valid
- *
- * @return     True if there is a valid File Descriptor, False otherwise.
- */
-bool hardwareInterface::validSetup() const noexcept
-{
-    return (fd > 0);
-}
 
-/**
- * @brief      Gets the page size.
- *
- * @return     The page size.
- */
-[[nodiscard]]
-hardwareInterface::reg_t hardwareInterface::getPageSize() noexcept
-{
-    return static_cast<reg_t>(::sysconf(_SC_PAGESIZE));
-}
 
 /**
  * @brief      Checks if a given offset is valid
@@ -271,7 +196,7 @@ hardwareInterface::reg_t hardwareInterface::getPageSize() noexcept
  *
  * @return     True if the given offset is valid for the setup, False otherwise.
  */
-bool hardwareInterface::validateAddress(reg_t offset) const noexcept
+bool hardwareInterface::validateAddress(reg_t offset)  noexcept
 {
-    return ((offset <= len) && (nullptr != mapping) && validSetup());
+    return (validateRegOffset( static_cast <std::uint32_t> (offset) ) );
 }

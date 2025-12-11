@@ -123,10 +123,12 @@ void M2MProcessor::getAutoRFState(float &val, string &msg)
 
 void M2MProcessor::setFastDetectionMode(float &val, string &msg)
 {
+  // Fixme Steve help
   syslog(LOG_DEBUG,"\n [%s] ---Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 void M2MProcessor::setSlowDetectionMode(float &val, string &msg)
 {
+     // Fixme  Steve help
   syslog(LOG_DEBUG,"\n [%s] ---Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 void M2MProcessor::getDetectionModeState(float &val, string &msg)
@@ -135,6 +137,7 @@ void M2MProcessor::getDetectionModeState(float &val, string &msg)
 }
 void M2MProcessor::faultClear(float &val, string &msg)
 {
+   // Fixme Marc Need to push FC to all booster
    fpga.faultClear();
 }
 
@@ -153,7 +156,7 @@ void M2MProcessor::setAgcLevel(float &val, string &msg)
 }
 void M2MProcessor::getAgcLevel(float &val, string &msg)
 {
-  val =  static_cast<float> (fpga.getAgcLevel ());
+   val =  static_cast<float> (fpga.getAgcLevel ());
    syslog(LOG_DEBUG,"\n [%s] ---AGC REG =[%f]:", __FUNCTION__,  val );
 }
 void M2MProcessor::setMgcLevel(float &val, string &msg)
@@ -226,14 +229,17 @@ void M2MProcessor::getReversePower(float &val, string &msg)
 //
 void M2MProcessor::getVswrState(float &val, string &msg)
 {
+    // Fixme never implemented
   syslog(LOG_DEBUG,"\n [%s] ---Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 void M2MProcessor::switchAntenna(float &val, string &msg)
 {
+    // Fixme Steve
   syslog(LOG_DEBUG,"\n [%s] ---Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 void M2MProcessor::getCurrentAntenna(float &val, string &msg)
 {
+    // Fixme Steve
   syslog(LOG_DEBUG,"\n [%s] ---Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 void M2MProcessor::SystemStatus(float &val, string &msg)
@@ -243,10 +249,12 @@ void M2MProcessor::SystemStatus(float &val, string &msg)
 
 void M2MProcessor::setUnitsToDBm(float &val, string &msg)
 {
+    // Fixme never implemented
   syslog(LOG_DEBUG,"\n [%s] ---Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 void M2MProcessor::setUnitsToWatts(float &val, string &msg)
 {
+    // Fixme never implemented
   syslog(LOG_DEBUG,"\n [%s] ---Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 void M2MProcessor::getUnits(float &val, string &msg)
@@ -255,14 +263,17 @@ void M2MProcessor::getUnits(float &val, string &msg)
 }
 void M2MProcessor::getSystemTemp(float &val, string &msg)
 {
+     // Fixme No need for ZeroMQ, this is a parameter
   syslog(LOG_DEBUG,"\n [%s] ---Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 void M2MProcessor::setTRSwitch(float &val, string &msg)
 {
+    // Fixme Steve
   syslog(LOG_DEBUG,"\n [%s] -Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 void M2MProcessor::getTRSwitch(float &val, string &msg)
 {
+    // Fixme Steve
   syslog(LOG_DEBUG,"\n [%s] -Received val =%f Message: %s", __FUNCTION__,val,  msg.c_str());
 }
 
@@ -270,6 +281,7 @@ void M2MProcessor::getTRSwitch(float &val, string &msg)
 
 void M2MProcessor::saveConfig(float &val, string &msg)
 {
+     // Fixme Steve using processMSC(msc)
     string mscMessage{msg};
     // Create an MSC struct and use a lambda to parse and fill the struct
     MSC msc;
@@ -309,6 +321,7 @@ void M2MProcessor::saveConfig(float &val, string &msg)
 
 void M2MProcessor::getConfig(float &val, string &msg)
 {
+     // Fixme Steve
     msg = formMSC();
 }
 
@@ -320,6 +333,7 @@ void M2MProcessor::getConfig(float &val, string &msg)
 
 void M2MProcessor::processMSC(MSC &msc)
 {
+    // Fixme Steve
     std::function<std::string(const std::string&)> getStartupMode = [](const std::string& mode) -> std::string {
         static const unordered_map<std::string, std::string> modeMap = {
             {"C", "Cold"},
@@ -366,6 +380,7 @@ void M2MProcessor::processMSC(MSC &msc)
 //
 string M2MProcessor::formSystemStatus()
 {
+    // Fixme Steve -- return a reply as default one, dont add SS
     string reply{"SNL 00 0000"};  // default values
 
     auto rfState = [] (const int rfEnable, const int psuCtrl)
@@ -384,6 +399,7 @@ string M2MProcessor::formSystemStatus()
 
 string M2MProcessor::formMSC()
 {
+     // Fixme Steve , return a string as the reply below
     string reply{"(1, R, S, CW, S, A, D, 255.0, 55.50)"};  // default values
 
     return reply;
