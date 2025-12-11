@@ -8,10 +8,6 @@
 #include <chrono>
 #include <ctime>
 
-#ifdef syslog
-#undef syslog
-#endif
-#define syslog(...) ((void)0)
 
 using namespace empower;
 
