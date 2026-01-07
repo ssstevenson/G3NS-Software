@@ -14,6 +14,12 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# --- Output Paths ---
+# This will place all executables in 'build/bin' and libraries in 'build/lib'
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+
 # --- Common Library Definition ---
 # This section creates a single library for all the code in the 'common/cpp' directory.
 # All other targets will link against this to use the shared code.
