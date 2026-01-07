@@ -6,6 +6,7 @@ build/*
 .metadata/*
 .settings/org.eclipse*
 *.bak
+*.save
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
