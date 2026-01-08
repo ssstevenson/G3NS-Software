@@ -88,14 +88,14 @@ class M2MZeroMQ {
             }
         };
 
-        void setupNotificationSocket()
+        void setupNotificationSocket() noexcept
         {
             m2mZeroMQPoll.close();
             m2mZeroMQPoll = zmq::socket_t(*m2mZeroMQctx, ZMQ_PULL);
 
             if ( socketBind(m2mZeroMQPoll, STATUS_TO_M2M) )
             {
-                int timeout = 5000; // ms
+                int timeout = 500; // ms
                 m2mZeroMQPoll.setsockopt(ZMQ_RCVTIMEO, &timeout, sizeof(timeout));
             }
         }
@@ -200,7 +200,7 @@ class M2MZeroMQ {
             }
             return result;
         }
-        bool  receiveNotification( string &status)
+        bool  receiveNotification( string &status) noexcept
         {
             bool  statusOk = false;
             status.clear();
@@ -210,7 +210,7 @@ class M2MZeroMQ {
                 { static_cast<void*>(m2mZeroMQPoll), 0, ZMQ_POLLIN, 0 }
             };
 
-            int timeout = 5000;
+            int timeout = 500;
             int rc = zmq::poll(items, 1, timeout);
 
             if (rc == -1)
@@ -219,28 +219,28 @@ class M2MZeroMQ {
                 //syslog(LOG_INFO, "[%s]---> Poll Failed Closing socket  \n", __FUNCTION__ );
                 setupNotificationSocket();
             }
-
-            if (rc > 0)
+            else
             {
-
-                // Message is available to be received
-                zmq::message_t message;
-                zmq::detail::recv_result_t received = m2mZeroMQPoll.recv(message, zmq::recv_flags::none);
-
-                if (received > 0)
+                if (rc > 0)
                 {
-                    // Successfully received a message
-                    status = std::string(static_cast<char*>(message.data()), message.size());
-                    statusOk = true;
+
+                    // Message is available to be received
+                    zmq::message_t message;
+                    zmq::detail::recv_result_t received = m2mZeroMQPoll.recv(message, zmq::recv_flags::none);
+
+                    if (received > 0)
+                    {
+                        // Successfully received a message
+                        status = std::string(static_cast<char*>(message.data()), message.size());
+                        statusOk = true;
+                    }
+                    else
+                    {
+                        //syslog(LOG_INFO, "[%s]---> m2mZeroMQPoll.recv  Timed Out or Error  \n", __FUNCTION__ );
+                        setupNotificationSocket();
+                    }
                 }
-                else
-                {
-                    //syslog(LOG_INFO, "[%s]---> m2mZeroMQPoll.recv  Timed Out or Error  \n", __FUNCTION__ );
-                    setupNotificationSocket();
-                }
-            }
-            else {
-                //syslog(LOG_INFO, "[%s]---> Timed Out  \n", __FUNCTION__ );
+
             }
 
             return statusOk;

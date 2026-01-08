@@ -62,7 +62,7 @@ public:
             if  (( timer_create(CLOCK_MONOTONIC, NULL, &t_id)) == 0 )
                 timerCreated = true;
         }
-        
+
         BaseTimer(const BaseTimer &) = delete;
         BaseTimer& operator=(const BaseTimer&)= delete;
 
@@ -95,7 +95,7 @@ class Timer : public BaseTimer
 
         static Timer  *getMyInstance();
         ~Timer();
-        
+
         Timer( const Timer& ) = delete;
         Timer &operator= (const Timer&)= delete;
         //
@@ -127,7 +127,7 @@ class Timer : public BaseTimer
         void lock() {pthread_mutex_lock(&timerAccessLock); };
         void unlock() {  pthread_mutex_unlock(&timerAccessLock); };
         int rtxCount;
-        pthread_t           myThread;
+        pthread_t           timerThread;
         sem_t   mutex;
         static Timer  *myInstance;
         Timer( int time_us,   TIMER_HANLER  timeHandler);   // As singeleton for now

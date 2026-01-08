@@ -44,7 +44,7 @@
 #include "M2MCP.h"
 
 
-M2MC_CP::M2MC_CP():myThread(),notifThread(),m2mCmd{},act(),Delimiter{"\n"},sysMsgCtrl{},
+M2MC_CP::M2MC_CP():userThread{},notifThread{}, notifThreadRunning(false), m2mCmd{},act(),Delimiter{"\n"},sysMsgCtrl{},
                     SoftwareBundle{},RfsID{},SysModel{},SysSN{},SysFW{},
                     useTimeout{false},M2M_TIMEOUT{0}
 {
@@ -455,8 +455,17 @@ string M2MC_CP::m2mGetAGClevel(string msg)
 
 string M2MC_CP::m2mSetMGClevel(string msg)
 {
+    float pwr = 0.0;
+    string reply{"?"};
+    if ( getValueFromM2MCmd(msg, pwr) )
+    {
+        if ( (pwr >= 0.0f) &&  ( pwr <= 100.0f))
+        {
+            return (sendGenericCmd(msg, 3,true));
+        }
+    }
 
-    return (sendGenericCmd(msg, 3,true));
+    return reply;
 
 }
 
@@ -949,6 +958,7 @@ void M2MC_CP::getSoftwareAndFirmware()
 
     file.close();
     }
+
     FpgaHal  fpga(FpgaBase, FpgaMemSize);
     SysFW = std::to_string(fpga.getFirmwareVers());
 
@@ -959,7 +969,10 @@ void M2MC_CP::getSoftwareAndFirmware()
 void M2MC_CP::startNotificationThread()
 {
     // Start Notification Thread
-    pthread_create (&notifThread, NULL,  notification_thread,  static_cast<void *>(this));
+    if ( pthread_create (&notifThread, NULL,  notification_thread, (void *) this) == 0)
+    {
+        notifThreadRunning = true;
+    }
     //
 }
 void  *M2MC_CP::notification_thread(void * ptr)
@@ -968,23 +981,38 @@ void  *M2MC_CP::notification_thread(void * ptr)
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
-    while (true)
+    if (m2mCp)
     {
-        string reply;
-        // This is blocking call till a message isreceived
-        if (m2mCp->sysMsgCtrl.getNotificationMsg(reply) )
+        while (m2mCp->isnotifThreadRunning() )
         {
-            if (!reply.empty())
+            string reply;
+            // This is blocking call till a message is received
+            if (m2mCp->sysMsgCtrl.getNotificationMsg(reply) )
             {
-               m2mCp->m2Mrespond( reply);
-            }
-            else
-            {
-                std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                if (!reply.empty())
+                {
+                   m2mCp->m2Mrespond( reply);
+                }
+                else
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+                }
             }
         }
     }
 
     return NULL;
+}
+
+void M2MC_CP::stopNotificationThread()
+{
+
+    if (notifThreadRunning) {
+        notifThreadRunning = false;
+        // Wait for the thread to actually finish its current 500ms poll
+        pthread_join(notifThread, NULL);
+
+    }
+
 }
 #pragma GCC diagnostic pop

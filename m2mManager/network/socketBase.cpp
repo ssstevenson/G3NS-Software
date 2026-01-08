@@ -23,23 +23,23 @@ using namespace std;
 // Function to fill in address structure given an address and port
 void BaseSocket::fillAddr(const string &address, unsigned short port,  sockaddr_in &addr) noexcept
 {
-  memset(&addr, 0, sizeof(addr));  // Zero out address structure
-  addr.sin_family = AF_INET;       // Internet address
+    memset(&addr, 0, sizeof(addr));  // Zero out address structure
+    addr.sin_family = AF_INET;       // Internet address
 
-  hostent *host;  // Resolve name
-  if ((host = gethostbyname(address.c_str())) == NULL)
-  {
-      printf ("\n Error in %s, Failed to resolve hsotname for address=%s, port =%d (socket=%d) \n",
+    hostent *host;  // Resolve name
+    if ((host = gethostbyname(address.c_str())) == NULL)
+    {
+        printf ("\n Error in %s, Failed to resolve hsotname for address=%s, port =%d (socket=%d) \n",
               __FUNCTION__, address.c_str(), port, sockDesc);
-     addr.sin_addr.s_addr = inet_addr(address.c_str());
+        addr.sin_addr.s_addr = inet_addr(address.c_str());
 
-  }
-  else
-  {
-        addr.sin_addr.s_addr = *( reinterpret_cast<unsigned long *> (host->h_addr_list[0]));
-  }
+    }
+    else
+    {
+        addr.sin_addr.s_addr = *((unsigned long *) host->h_addr_list[0]);
+    }
 
-  addr.sin_port = htons(port);     // Assign port in network byte order
+    addr.sin_port = htons(port);     // Assign port in network byte order
 }
 
 // BaseSocket Code
@@ -47,12 +47,11 @@ void BaseSocket::fillAddr(const string &address, unsigned short port,  sockaddr_
 BaseSocket::BaseSocket(int type, int protocol) noexcept:sockDesc(-1)
 {
 
-  // Make a new socket
-  if ((sockDesc = socket(PF_INET, type, protocol)) < 0)
-  {
-    printf ("Socket creation failed (socket()) \n");
-  }
-
+    // Make a new socket
+    if ((sockDesc = socket(PF_INET, type, protocol)) < 0)
+    {
+        printf ("Socket creation failed (socket()) \n");
+    }
 }
 
 BaseSocket::BaseSocket(int sock) noexcept :sockDesc(sock)
@@ -61,10 +60,8 @@ BaseSocket::BaseSocket(int sock) noexcept :sockDesc(sock)
 
 BaseSocket::~BaseSocket()
 {
-
    ::close(sockDesc);
-
-  sockDesc = -1;
+    sockDesc = -1;
 }
 
 string BaseSocket::getLocalAddress() noexcept
@@ -72,56 +69,77 @@ string BaseSocket::getLocalAddress() noexcept
   sockaddr_in addr;
   unsigned int addr_len = sizeof(addr);
 
-  if (getsockname(sockDesc,  reinterpret_cast<sockaddr *> ( &addr),  &addr_len) < 0)
+  if (getsockname(sockDesc, (sockaddr *) &addr,  &addr_len) < 0)
   {
-    printf("Fetch of local address failed (getsockname())\n");
+        printf("Fetch of local address failed (getsockname())\n");
   }
   return inet_ntoa(addr.sin_addr);
 }
 
 unsigned short BaseSocket::getLocalPort() noexcept
 {
-  sockaddr_in addr;
-  unsigned int addr_len = sizeof(addr);
+    sockaddr_in addr;
+    unsigned int addr_len = sizeof(addr);
 
-  if (getsockname(sockDesc,  reinterpret_cast<sockaddr *> ( &addr),  &addr_len) < 0)
-  {
-    printf("Fetch of local port failed (getsockname())\n");
-  }
-  return ntohs(addr.sin_port);
+    if (getsockname(sockDesc, (sockaddr *) &addr,  &addr_len) < 0)
+    {
+        printf("Fetch of local port failed (getsockname())\n");
+        return 0;
+    }
+    return ntohs(addr.sin_port);
 }
 
 void BaseSocket::setLocalPort(unsigned short localPort) noexcept
 {
-  // Bind the socket to its port
-  sockaddr_in localAddr;
-  memset(&localAddr, 0, sizeof(localAddr));
-  localAddr.sin_family = AF_INET;
-  localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
-  localAddr.sin_port = htons(localPort);
+    //
 
-  // We need to close the socket and open new one
-  if (sockDesc > 0)
-  {
-      int type = checkSocketType(sockDesc);
-      int protocol = IPPROTO_TCP;
-        close (sockDesc);
-      // mobbad
-      if (type == SOCK_DGRAM )
-      {
-          protocol = IPPROTO_UDP;
-      }
-      if ( (sockDesc = socket(PF_INET, type, protocol)) < 0 )
-      {
-         printf("Set of local port ---- Unable to create socket(tye=%d, protocol=%d)\n",type,protocol );
-      }
 
-  }
+    sockaddr_in localAddr;
+    unsigned short currentPort = 0;
 
-  if (bind(sockDesc, reinterpret_cast<sockaddr *> ( &localAddr), sizeof(sockaddr_in)) < 0)
-  {
-    printf("Set of local port failed (bind()) \n");
-  }
+    memset(&localAddr, 0, sizeof(localAddr));
+    localAddr.sin_family = AF_INET;
+    localAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    localAddr.sin_port = htons(localPort);
+
+
+    if (sockDesc > 0)
+    {
+        int type = checkSocketType(sockDesc);
+        int protocol = IPPROTO_TCP;
+
+        if (type == SOCK_DGRAM )
+        {
+            protocol = IPPROTO_UDP;
+        }
+        currentPort = getLocalPort();
+        if ( (currentPort != 0 )  && (localPort != currentPort) )
+        {
+            close (sockDesc);
+            syslog( LOG_INFO," [%s]  Closing Socket -- port has changed [ new port = %d --old port = %d] ",__FUNCTION__, localPort, currentPort);
+            if ( (sockDesc = socket(PF_INET, type, protocol)) < 0 )
+            {
+                syslog( LOG_ERR , "[%s] ---> Set of local port ---- Unable to create socket(tye=%d, protocol=%d)",__FUNCTION__, type,protocol );
+            }
+
+        }
+    }
+    else
+    {
+        syslog( LOG_ERR ,"[%s]--> Socket error : SockeDesc = %d \n", __FUNCTION__, sockDesc );
+        return;
+    }
+
+    if ( localPort != currentPort )
+    {
+        if (bind(sockDesc, (sockaddr *) &localAddr, sizeof(sockaddr_in)) < 0)
+        {
+            printf("[%s]  Set of local port failed (bind():  %s (errno: %d) \n",__FUNCTION__,  strerror(errno), errno);
+            syslog( LOG_ERR," [%s]  Set of local port[%d]  for socket [%d] failed (bind():  %s (errno: %d)",__FUNCTION__, localPort, sockDesc,  strerror(errno), errno);
+        }
+    }
+
+    syslog( LOG_DEBUG," [%s]  Set of local port[%d]  for socket [%d] ",__FUNCTION__, localPort, sockDesc);
 }
 
 void BaseSocket::setLocalAddressAndPort(const string &localAddress,  unsigned short localPort) noexcept
@@ -130,7 +148,7 @@ void BaseSocket::setLocalAddressAndPort(const string &localAddress,  unsigned sh
     sockaddr_in localAddr;
     fillAddr(localAddress, localPort, localAddr);
 
-    if (bind(sockDesc, reinterpret_cast<sockaddr *> ( &localAddr), sizeof(sockaddr_in)) < 0)
+    if (bind(sockDesc, (sockaddr *) &localAddr, sizeof(sockaddr_in)) < 0)
     {
         printf("Set of local address and port failed (bind()) \n");
     }
@@ -143,6 +161,7 @@ void BaseSocket::setLocalInterface(const string &ifaceName) noexcept
     if (setsockopt(sockDesc, SOL_SOCKET, SO_BINDTODEVICE, ifaceName.c_str(), ifaceName.size()) < 0 )
     {
         printf("Unable to Bind To interface (bind())\n");
+        syslog(LOG_ERR, "Unable to Bind To interface (bind())");
     }
 }
 void BaseSocket::cleanUp() noexcept
@@ -191,7 +210,7 @@ int CommunicatingSocket::connect(const string &foreignAddress, unsigned short fo
     fillAddr(foreignAddress, foreignPort, destAddr);
 
     // Try to connect to the given port
-    int ret = ::connect(sockDesc,  reinterpret_cast<sockaddr *> ( &destAddr), sizeof(destAddr));
+    int ret = ::connect(sockDesc, (sockaddr *) &destAddr, sizeof(destAddr));
 
     return ret;
 }
@@ -199,7 +218,7 @@ int CommunicatingSocket::connect(const string &foreignAddress, unsigned short fo
 int CommunicatingSocket::send(const void *buffer, long unsigned int bufferLen, int flag)   noexcept
 {
      int rtn = 0;
-    rtn = ::send(sockDesc, const_cast<raw_type *>(buffer), bufferLen, flag) ;
+    rtn = ::send(sockDesc, (raw_type *) buffer, bufferLen, flag) ;
     return rtn;
 
 }
@@ -216,7 +235,7 @@ string CommunicatingSocket::getForeignAddress() noexcept
     sockaddr_in addr;
     unsigned int addr_len = sizeof(addr);
 
-    if (getpeername(sockDesc, reinterpret_cast<sockaddr *> ( &addr), &addr_len) < 0)
+    if (getpeername(sockDesc, (sockaddr *) &addr, &addr_len) < 0)
     {
         printf("Fetch of foreign address failed (getpeername())\n");
     }
@@ -228,7 +247,7 @@ unsigned short CommunicatingSocket::getForeignPort() noexcept
     sockaddr_in addr;
     unsigned int addr_len = sizeof(addr);
 
-    if (getpeername(sockDesc, reinterpret_cast<sockaddr *> ( &addr),  &addr_len) < 0)
+    if (getpeername(sockDesc, (sockaddr *) &addr,  &addr_len) < 0)
     {
         printf("Fetch of foreign port failed (getpeername())\n");
     }
@@ -271,13 +290,20 @@ TCPSocket *TCPServerSocket::accept() noexcept
 {
     int newConnSD;
     TCPSocket *newConn = NULL;
-    if ((newConnSD = ::accept(sockDesc, NULL, 0)) < 0)
+    if (sockDesc <= 0 )
     {
-        printf("Accept failed (accept()) \n");
+        syslog( LOG_ERR, "[ %s]  Base Socket is not created ", __FUNCTION__);
     }
     else
     {
-        newConn = new TCPSocket(newConnSD);
+        if ((newConnSD = ::accept(sockDesc, NULL, 0)) < 0)
+        {
+           syslog( LOG_ERR," [%s] Accept failed: %s (errno: %d)",__FUNCTION__,  strerror(errno), errno);
+        }
+        else
+        {
+            newConn = new TCPSocket(newConnSD);
+        }
     }
 
     return newConn;
@@ -287,7 +313,7 @@ void TCPServerSocket::setListen(int queueLen) noexcept
 {
     if (listen(sockDesc, queueLen) < 0)
     {
-        printf("Set listening socket failed (listen()) \n");
+         syslog( LOG_ERR ," [%s]  Set listening socket failed (listen())", __FUNCTION__);
     }
 }
 
@@ -315,7 +341,7 @@ void UDPSocket::setBroadcast()
     // If this fails, we'll hear about it when we try to send.  This will allow
     // system that cannot broadcast to continue if they don't plan to broadcast
     int broadcastPermission = 1;
-    setsockopt(sockDesc, SOL_SOCKET, SO_BROADCAST,  static_cast<raw_type *> (&broadcastPermission), sizeof(broadcastPermission));
+    setsockopt(sockDesc, SOL_SOCKET, SO_BROADCAST, (raw_type *) &broadcastPermission, sizeof(broadcastPermission));
 }
 
 void UDPSocket::disconnect()
@@ -325,11 +351,11 @@ void UDPSocket::disconnect()
     nullAddr.sin_family = AF_UNSPEC;
 
     // Try to disconnect
-    if (::connect(sockDesc, reinterpret_cast<sockaddr *> ( &nullAddr), sizeof(nullAddr)) < 0)
+    if (::connect(sockDesc, (sockaddr *) &nullAddr, sizeof(nullAddr)) < 0)
     {
         if (errno != EAFNOSUPPORT)
         {
-            printf("Disconnect failed (connect()) \n");
+            syslog( LOG_ERR," [%s]  Disconnect failed (connect()) ",__FUNCTION__);
         }
     }
 }
@@ -342,9 +368,9 @@ int UDPSocket::sendTo(const void *buffer, int bufferLen, const string &foreignAd
     int len;
 
     // Write out the whole buffer as a single message.
-    if ( (len=sendto(sockDesc, const_cast<raw_type *>(buffer), bufferLen, 0,   reinterpret_cast<sockaddr *> ( &destAddr), sizeof(destAddr)) )!= bufferLen)
+    if ( (len = sendto(sockDesc, (raw_type *) buffer, bufferLen, 0,   (sockaddr *) &destAddr, sizeof(destAddr)) )!= bufferLen)
     {
-        printf("Send failed (sendto()) \n");
+        syslog( LOG_ERR," [%s]  Failed to Send message  ",__FUNCTION__);
     }
 
     return len;
@@ -355,9 +381,9 @@ int UDPSocket::recvFrom(void *buffer, int bufferLen, string &sourceAddress, unsi
     sockaddr_in clntAddr;
     socklen_t addrLen = sizeof(clntAddr);
     int rtn;
-    if ((rtn = recvfrom(sockDesc,  buffer, bufferLen, 0, reinterpret_cast<sockaddr *> ( &clntAddr), &addrLen)) < 0)
+    if ((rtn = recvfrom(sockDesc,  buffer, bufferLen, 0, (sockaddr *) &clntAddr, &addrLen)) < 0)
     {
-       printf("Receive failed (recvfrom()) \n");
+       syslog( LOG_ERR," [%s]  Receive failed  ",__FUNCTION__);
     }
     sourceAddress = inet_ntoa(clntAddr.sin_addr);
     sourcePort = ntohs(clntAddr.sin_port);
@@ -367,7 +393,7 @@ int UDPSocket::recvFrom(void *buffer, int bufferLen, string &sourceAddress, unsi
 
 void UDPSocket::setMulticastTTL(unsigned char multicastTTL) noexcept
 {
-    if (setsockopt(sockDesc, IPPROTO_IP, IP_MULTICAST_TTL,  static_cast<raw_type *> (&multicastTTL), sizeof(multicastTTL)) < 0)
+    if (setsockopt(sockDesc, IPPROTO_IP, IP_MULTICAST_TTL, (raw_type *) &multicastTTL, sizeof(multicastTTL)) < 0)
     {
         printf("Multicast TTL set failed (setsockopt()) \n");
     }
@@ -379,7 +405,7 @@ void UDPSocket::joinGroup(const string &multicastGroup)
 
     multicastRequest.imr_multiaddr.s_addr = inet_addr(multicastGroup.c_str());
     multicastRequest.imr_interface.s_addr = htonl(INADDR_ANY);
-    if (setsockopt(sockDesc, IPPROTO_IP, IP_ADD_MEMBERSHIP, static_cast<raw_type *> (&multicastRequest), sizeof(multicastRequest)) < 0)
+    if (setsockopt(sockDesc, IPPROTO_IP, IP_ADD_MEMBERSHIP,(raw_type *) &multicastRequest, sizeof(multicastRequest)) < 0)
     {
         printf("Multicast group join failed (setsockopt()) \n");
     }
@@ -391,7 +417,7 @@ void UDPSocket::leaveGroup(const string &multicastGroup)
 
     multicastRequest.imr_multiaddr.s_addr = inet_addr(multicastGroup.c_str());
     multicastRequest.imr_interface.s_addr = htonl(INADDR_ANY);
-    if (setsockopt(sockDesc, IPPROTO_IP, IP_DROP_MEMBERSHIP,  static_cast<raw_type *> (&multicastRequest),sizeof(multicastRequest)) < 0)
+    if (setsockopt(sockDesc, IPPROTO_IP, IP_DROP_MEMBERSHIP, (raw_type *) &multicastRequest,sizeof(multicastRequest)) < 0)
     {
         printf("Multicast group leave failed (setsockopt()) \n");
     }

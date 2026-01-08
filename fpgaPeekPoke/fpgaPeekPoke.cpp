@@ -1,7 +1,6 @@
 #include <iostream>
 #include <iomanip>
-#include <FpgaIO/fpgaIO.h>
-#include <FpgaIO/fpgaDefs.h>
+
 #include <hardwareInterface/hardwareInterface.h>
 
 #include "cxxopts.hpp"

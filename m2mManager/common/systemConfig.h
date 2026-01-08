@@ -24,8 +24,8 @@
 
 
 
-#define ETH_EXTERNAL        "eth0"
-#define ETH_INTERNAL        "eth1"    //FIXME MARC!
+#define ETH_EXTERNAL        "mboard"
+
 
 
 

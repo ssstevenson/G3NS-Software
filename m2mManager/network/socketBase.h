@@ -10,6 +10,7 @@
 #include <netinet/in.h>      // For sockaddr_in
 #include <cstring>
 #include <helpers/debug.h>
+#include <syslog.h>
 using namespace std;
 
 #pragma GCC diagnostic ignored "-Wdeprecated"
@@ -20,7 +21,7 @@ using namespace std;
 class BaseSocket
 {
     public:
-      
+
         virtual ~BaseSocket();
         string getLocalAddress()   noexcept;
         unsigned short getLocalPort()  noexcept;
@@ -34,6 +35,11 @@ class BaseSocket
 
         void setLocalInterface(const string &ifaceName)   noexcept ;
         void fillAddr(const string &address, unsigned short port,  sockaddr_in &addr) noexcept;
+        void closeSock(int &sock) noexcept
+        {
+            ::close(sock);
+            sock = -1;
+        }
     private:
         // Prevent the user from trying to use value semantics on this object
         BaseSocket(const BaseSocket &sock);
@@ -143,7 +149,7 @@ class TCPServerSocket : public BaseSocket
         *   @exception BaseSocketException thrown if unable to create TCP server socket
         */
         TCPServerSocket(unsigned short localPort, int queueLen = 2);
-        virtual ~TCPServerSocket() = default; 
+        virtual ~TCPServerSocket() = default;
 
         /**
         *   Construct a TCP socket for use with a server, accepting connections

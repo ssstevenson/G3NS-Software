@@ -49,7 +49,7 @@ int main(int argc, char* argv[])
         }
     }
     else {
-        wval = static_cast <unsigned int > (std::stoi(argv[1])) ;
+        wval = static_cast<unsigned int> (std::stoul(std::string(argv[1]), nullptr, 16));
 
     }
 

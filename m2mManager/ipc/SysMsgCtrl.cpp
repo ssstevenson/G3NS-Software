@@ -491,6 +491,7 @@ string  SysMsgCtrl::processMSC(string msg)
 
 std::string  SysMsgCtrl::getSysTemps()
 {
+    // Fixme Steve
     string resp = std::string("NA");
     if(auto curTemp{statusIf->getStatusParam<std::int32_t>("ENV_MAX_REGULATION_TEMP")}; curTemp.has_value())
     {
@@ -501,16 +502,13 @@ std::string  SysMsgCtrl::getSysTemps()
 }
 
 
-bool  SysMsgCtrl::getNotificationMsg(std::string &reply)
+bool  SysMsgCtrl::getNotificationMsg(std::string &reply) noexcept
 {
-    //syslog(LOG_INFO, "[%s]---> SysMsgCtrl::getNotificationMsg \n", __FUNCTION__ );
     string status;
     bool repOk = receiveNotification(status);
-
-    //syslog(LOG_INFO, "[%s]---> receiveNotificationK [Got message:%s] \n", __FUNCTION__ , repOk?"Yes":"NO");
     if (repOk)
     {
-       // syslog(LOG_INFO, "[%s]---> Got a notification Message \n", __FUNCTION__ );
+        syslog(LOG_DEBUG, "[%s]---> Got a notification Message: %s  \n", __FUNCTION__ , status.c_str());
         // Status is JSON String
         JsonFormater jsonString;
         string messageType;

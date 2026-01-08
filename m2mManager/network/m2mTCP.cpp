@@ -1,6 +1,6 @@
 
 #include <sys/socket.h>
-#include <cstring>  // ✅ Required for memset
+#include <cstring>
 #include <linux/if.h>
 #include <linux/if_tun.h>
 #include <netinet/in.h>
@@ -21,9 +21,8 @@
 #include "m2mTCP.h"
 // Define Static parameters
 
-pthread_t   newConnThread;
-M2MTCP *M2MTCP::myInstance = NULL;
-
+M2MTCP* M2MTCP::myInstance = nullptr;
+std::mutex M2MTCP::m2m_mutex;
 
 
 #define NEW_LINE 0x0A
@@ -32,51 +31,91 @@ M2MTCP *M2MTCP::myInstance = NULL;
 // Desttructor..
 M2MTCP::~M2MTCP()
 {
-    delete myInstance;
-    myInstance = NULL;
+    syslog(LOG_DEBUG, "  [%s]-->  M2MTCP::~M2MTCP() called  ", __FUNCTION__);
+    // Join threads here if they are still running
+    if (userThread.joinable()) {
+        userThread.join();
+    }
+
+    if (clientThread.joinable()) {
+        clientThread.join();
+    }
+    myInstance = nullptr;
 }
 
 
-M2MTCP *M2MTCP::getMyInstance()
+M2MTCP *M2MTCP::getMyInstance( unsigned short port )
 {
-    if (myInstance == NULL )
+    std::lock_guard<std::mutex> lock(m2m_mutex);
+
+    if (myInstance == nullptr )
     {
-        myInstance = new M2MTCP;
+        myInstance = new M2MTCP( port);
+        syslog(LOG_DEBUG, "  [%s]-->  First Instance  port  = %d ", __FUNCTION__, port);
+    }
+    else
+    {
+        unsigned short currPort = myInstance->getServerPort();
+        if (currPort != port )
+        {
+            syslog(LOG_DEBUG, "  [%s]-->  New port  %d  --- current Port =%d ", __FUNCTION__, port, currPort);
+            myInstance->setRunning(false);
+            myInstance->stopNotificationThread();
+            myInstance->m2mCloseServerConnection();
+
+
+            if (myInstance->clientThread.joinable()) {
+                myInstance->clientThread.join();
+            }
+
+            if (myInstance)  {
+                delete myInstance;
+            }
+            myInstance = new M2MTCP( port);
+        }
     }
 
     return myInstance;
 }
 //Ctors
-M2MTCP::M2MTCP():TCPServerSocket(M2M_TCP_PORT),
-    isrunning(true),
-    m2m_tcp_server_port( M2M_TCP_PORT),
+M2MTCP::M2MTCP( unsigned short port):TCPServerSocket(port),
+    isrunning(false),
     remoteIP(),
     remotePort(0),
     connected(false),
-    newConn(NULL)
+    newConn(NULL),
+    serverSocket(-1),
+    clientScoket(-1),
+    serverPort(port),
+    clientThread{}
+
 {
-    SetupM2MTCPServer();
+    serverSocket = getSocketDesc();
+    syslog(LOG_DEBUG, "  [%s]--> M2M TCP Ctor --Server Socket = %d ", __FUNCTION__, serverSocket);
+
 }
 
 void M2MTCP::startThread()
 {
-    printf(".......starting M2M  TCP  Server  Thread .......\n");
-    pthread_create (&this->myThread, NULL,  M2MTCPMain,  static_cast<void *> ( this));
-    //
+    userThread =  std::thread(&M2MTCP::M2MTCPMain, this);
+
 }
 //
 //  Restart Socket Server
 //
 
-void M2MTCP::SetupM2MTCPServer()
+void M2MTCP::SetupServerSocket()
 {
     int sfd =  getSocketDesc();
     int optval = 1;
     int status = 0;
 
-    status = setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
-    status    += setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
-    status    += setsockopt(sfd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
+    if (sfd > 0)
+    {
+        status = setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &optval, sizeof(optval));
+        status += setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
+        status += setsockopt(sfd, SOL_SOCKET, SO_KEEPALIVE, &optval, sizeof(optval));
+    }
 
     if (status < 0 )
     {
@@ -86,62 +125,90 @@ void M2MTCP::SetupM2MTCPServer()
 }
 //
 //
-void M2MTCP::restartM2MTCP()
+void M2MTCP::restartServer()
 {
     int socketFD =  getSocketDesc();
+
     if (socketFD > 0 )
     {
-        ::close(socketFD);
+        closeSock(socketFD);
     }
     socketFD = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     setSocketDesc( socketFD);
     remoteIP.clear();
     //
-    SetupM2MTCPServer();
+    SetupServerSocket();
 }
 //
 //
 //
 
-void  *M2MTCP::M2MTCPMain ( void *ptr)
+void  M2MTCP::M2MTCPMain ()
 {
 
     //
     TCPSocket  *conn;
-    dbgprintf(".......TCP Server  Thread Main.......\n");
-    M2MTCP *m2mTcp = reinterpret_cast < M2MTCP * >  (ptr);
+    dbgprintf(".......TCP Main   Thread .......\n");
+    syslog(LOG_INFO, "[%s] .......starting M2M TCP Main  Thread .......", __FUNCTION__);
 
-    if (!m2mTcp)
-    {
-        printf(" M2MTCP has not been created yet \n");
-        return NULL;
-    }
+    struct pollfd fds[1];
+    fds[0].fd = serverSocket;
+    fds[0].events = POLLIN;
 
-    while (m2mTcp->isRunning())
+    while (isRunning())
     {
-        conn = m2mTcp->accept();
-        if (conn )
+        // Poll the server socket
+        int ret = poll(fds, 1, 500);
+
+        if (ret < 0)
         {
-            if ( !m2mTcp->isConnected () )
-            {
-                m2mTcp->setNewConnection (conn);
-                m2mTcp->setConnected(true);
-                pthread_create (&newConnThread, NULL, newConnMain,ptr);
-            }
-
+            if (errno == EINTR) continue;
+            syslog(LOG_ERR, "Poll error: %s", strerror(errno));
+            break;
         }
-        sleep(1);
+
+        if (ret == 0) {
+            continue;
+        }
+
+        if (fds[0].revents & POLLIN)
+        {
+            conn = accept(); // This will now return immediately
+            if (conn)
+            {
+                if (!isConnected())
+                {
+                    setNewConnection(conn);
+                    setConnected(true);
+                    clientThread = std::thread(&M2MTCP::newConnMain, this);
+                }
+                else {
+                    // Only one connection allowed, reject the new one
+                    int tempSk = conn->getSocketDesc();
+                    closeSock(tempSk);
+                    delete conn;
+                }
+            }
+        }
     }
 
-    return NULL;
+
+    // Close Main TCP Socket
+    closeSock(serverSocket);
+    int srvSock = getSocketDesc();
+    syslog(LOG_INFO, "[%s] ..TCP Main Thread is Terminated ( Server Socket =%d  Closed ) ......", __FUNCTION__, srvSock );
+    if (serverSocket != srvSock )
+        closeSock(srvSock);
+
 }
 
 
+
 //
 //
 //
 
-void  *M2MTCP::newConnMain ( void *ptr)
+void  M2MTCP::newConnMain ( )
 {
 
     int ret = -1;
@@ -157,31 +224,31 @@ void  *M2MTCP::newConnMain ( void *ptr)
     string stop("CLOSE");
     //
     //
-    printf(".......TCP Server New Connection Thread Main.......\n");
-    M2MTCP *m2mTcp = reinterpret_cast < M2MTCP * >  (ptr);
-    TCPSocket *tcpConn = m2mTcp->getTcpConn();
+    TCPSocket *tcpConn = getTcpConn();
 
 
 
     if (!tcpConn)
     {
         printf(" M2M TCP  has not been created yet \n");
-        return NULL;
+        syslog(LOG_ERR, "[%s] .....M2M TCP Server  has not been created yet.......", __FUNCTION__);
+        return ;
     }
 
-    m2mTcp->sysMsgCtrl.setUiM2mControl();
+    sysMsgCtrl.setUiM2mControl();
 
     long unsigned int dataOffset = 0;
     memset(DataBuffer,0, static_cast <size_t> (dataMaxLen));
 
     clSocket = tcpConn->getSocketDesc();
-
-    while (m2mTcp->isRunning() )
+    setRunning(true);
+    syslog(LOG_DEBUG, "[%s] .......starting M2M TCP Session  Thread -- Client Socket=%d.......", __FUNCTION__,clSocket);
+    while (isRunning() )
     {
-        auto processTimeST = m2mTcp->getCurrentTime();
-        if ( (m2mTcp->isTimeOutUsed() ) && ( m2mTcp->getTimeout()  != 0 ) )
+        auto processTimeST = getCurrentTime();
+        if ( (isTimeOutUsed() ) && ( getTimeout()  != 0 ) )
         {
-            timeout = m2mTcp->getTimeout()*1000;
+            timeout = getTimeout()*1000;
         }
         else
         {
@@ -199,7 +266,7 @@ void  *M2MTCP::newConnMain ( void *ptr)
         {
             if ( (fds[0].revents &  POLLIN ) && (fds[0].fd ==  clSocket) )
             {
-                processTimeST = m2mTcp->getCurrentTime();
+                processTimeST = getCurrentTime();
                 if ( dataOffset >= dataMaxLen)
                 {
 
@@ -216,41 +283,20 @@ void  *M2MTCP::newConnMain ( void *ptr)
                 {
                     dataOffset += len;
 
-#ifdef DEBUG
-                    dbgprintf("%s():M2M recv TCP Message  =[%s] --->len=[%d]\n", __FUNCTION__, DataBuffer, dataOffset);
-                    printf("CMD in Hex: ");
-                    m2mTcp->print_hex(DataBuffer,dataOffset );
-                      printf("\n");
-#endif
                     // We could have "MO\n\r" or "MO\n" or "MO\r" or "MO\r\n"
-                    if ( int bufx= dataOffset-1;   m2mTcp->is_delimiter(DataBuffer[bufx -1]) ||  m2mTcp->is_delimiter(DataBuffer[bufx]) )
+                    if ( int bufx= dataOffset-1;   is_delimiter(DataBuffer[bufx -1]) ||  is_delimiter(DataBuffer[bufx]) )
                     {
                         std::string message{DataBuffer,dataOffset};
-#ifdef DEBUG
-                        auto alphanumeric = []( string &input)  -> std::string {
-                            string str{input};
-                            for (auto it = str.begin(); it != str.end(); ) {
-                                if (*it == '\n' || *it == '\r') {
-                                    it = str.erase(it);  // Erase and update iterator
-                                } else {
-                                    ++it;
-                                }
-                            }
-                            return str;
-                        };
-                        string temp = alphanumeric(message);
-                        dbgprintf("%s():M2M TCP processing Command   =[%s]-->len=[%d]\n", __FUNCTION__, temp.c_str(), temp.size());
-#endif
-                        syslog(LOG_INFO,"%s():Received User M2M Message: %s:", __FUNCTION__, DataBuffer);
+                        syslog(LOG_DEBUG,"%s():Received User M2M Message: %s:", __FUNCTION__, DataBuffer);
 
                         reply.clear();
-                        m2mTcp->processM2MMessage(message, reply);
+                        processM2MMessage(message, reply);
                         if ( (reply.size() > 0) )
                         {
                             if ( ( reply != stop ) && (reply.substr(0, 2) != std::string("NA") ) )
                             {
                                 dbgprintf("%s():Sending Response (%d bytes):%s\n", __FUNCTION__, (int ) (reply.size()) , reply.c_str());
-                                syslog(LOG_INFO,"%s():Sending Response to User:%s", __FUNCTION__, reply.c_str() );
+                                syslog(LOG_DEBUG,"%s():Sending Response to User:%s", __FUNCTION__, reply.c_str() );
                                 tcpConn->send(reply.c_str(), reply.size());
                             }
                         }
@@ -266,7 +312,7 @@ void  *M2MTCP::newConnMain ( void *ptr)
                 syslog( LOG_ERR, "%s()--> Errno=%s -- Socket poll Revents  failed ",__FUNCTION__ ,strerror(errno) );
                 socketError++;
             }
-            auto ProcessTimeEnd = m2mTcp->getCurrentTime();
+            auto ProcessTimeEnd = getCurrentTime();
             auto duration = std::chrono::duration_cast<std::chrono::microseconds>(ProcessTimeEnd - processTimeST);
             dbgprintf("%s(): Processing time ===>  Time = %lu microseconds \n", __FUNCTION__,duration.count() );
         }
@@ -284,7 +330,7 @@ void  *M2MTCP::newConnMain ( void *ptr)
             }
             else
             {
-                if  ( (m2mTcp-> isTimeOutUsed()) && (m2mTcp->getTimeout() != 0) )
+                if  ( ( isTimeOutUsed()) && (getTimeout() != 0) )
                 {
                     syslog(LOG_INFO,"\n !!!!!%s(): Connection Times Out after %d !!!!!!!!\n ", __FUNCTION__, timeout);
                     break;
@@ -304,15 +350,13 @@ void  *M2MTCP::newConnMain ( void *ptr)
         }
     }
 
-     m2mTcp->sysMsgCtrl.clearUiM2mControl();
-    m2mTcp->setConnected(false);
-    close (clSocket);
-    dbgprintf("\n !!!!!%s(): TCP Connection Ended..!!!!!!!!\n ", __FUNCTION__);
-    syslog(LOG_INFO,"\n !!!!!%s(): Closing M2M Connection !!!!!!!!\n ", __FUNCTION__);
+    sysMsgCtrl.clearUiM2mControl();
+    setConnected(false);
+    syslog(LOG_INFO,"!!!!!%s(): Closing M2M Client Connection -Client Socket=%d!!!!!!!! ", __FUNCTION__, clSocket);
+    closeSock (clSocket);
+
     delete tcpConn;
 
-    sleep(1);
-    return NULL;
 }
 
 
@@ -335,7 +379,7 @@ void M2MTCP::m2Mrespond( string reply)
 
             if ( ret > 0 )
             {
-                syslog(LOG_INFO,"Sending/Forwarding response to user: %s\n ", reply.c_str());
+                syslog(LOG_DEBUG,"Sending/Forwarding response to user: %s\n ", reply.c_str());
                 newConn->send(reply.c_str(), reply.size());
             }
         }
@@ -349,7 +393,7 @@ void  M2MTCP::closeConnection()
     if (newConn )
     {
         int clSocket = newConn->getSocketDesc();
-        close (clSocket);
+        closeSock (clSocket);
     }
 }
 
@@ -362,6 +406,13 @@ void M2MTCP::handleExecption()
 {
    stopConnection();
    closeConnection();
+}
+
+void M2MTCP::m2mCloseServerConnection()
+{
+    syslog(LOG_DEBUG," %s()--->Closing Server Connection", __FUNCTION__);
+    closeSock (serverSocket);
+    closeConnection();
 }
 
 #pragma GCC diagnostic pop

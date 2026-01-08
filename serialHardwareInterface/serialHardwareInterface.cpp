@@ -5,6 +5,7 @@
 #include <logger/logger.h>
 #include <parser/serialHardwareInterfaceParser.h>
 #include <string>
+#include <syslog.h>
 
 /**
  * @brief      Serial Hardware Interface Main Function
@@ -26,6 +27,7 @@ int main(int argc, char* argv[])
         return EXIT_FAILURE;
     }
 
+    openlog("SerialHwInterfrace", LOG_PID | LOG_CONS, LOG_LOCAL0);
     auto devStr = std::string{argv[1]};
     std::transform(devStr.begin(), devStr.end(), devStr.begin(), ::toupper);
 

@@ -31,8 +31,7 @@
 *
 *****************************************************************************/
 
-//#ifndef __GEN3_M2MCP__
-//#define __GEN3_M2MCP__
+
 #pragma once
 #include <stdio.h>
 #include <time.h>
@@ -64,6 +63,7 @@
 #include <cstdio>
 #include <regex>
 #include <fstream>   // For file handling
+#include <syslog.h>
 #include "M2MTimer.h"
 #include <helpers/debug.h>
 #include "SysMsgCtrl.h"   // reflect  APIs to external world
@@ -83,7 +83,7 @@ class M2MC_CP : public M2MTimer
         virtual void handleExecption() = 0;
         //
         virtual void startThread() = 0;
-        pthread_t getMyThread() { return myThread; };
+
         ///
         void startNotificationThread();
         static void  *notification_thread(void *ptr);
@@ -110,9 +110,14 @@ class M2MC_CP : public M2MTimer
         {
             Delimiter = newDelimiter;  // Direct assignment, no need to call clear
         }
+        bool isnotifThreadRunning() { return notifThreadRunning; };
+        void stopNotificationThread() ;
     protected:
-       pthread_t myThread;
+
+       std::thread userThread ;
+
         pthread_t notifThread;
+        bool    notifThreadRunning;
         // Process Message  received from from UI
         void processM2MMessage( std::string &message, std::string &reply );
         vector<string>  split(string str, char delimiter);
@@ -270,3 +275,4 @@ class M2MC_CP : public M2MTimer
 };
 
 //#endif
+

@@ -31,8 +31,7 @@
 *
 *****************************************************************************/
 
-#ifndef __TCP_M2M_SERVER_SOCKET__
-#define __TCP_M2M_SERVER_SOCKET__
+#pragma once
 
 #include <signal.h>
 #include <vector>
@@ -43,6 +42,9 @@
 #include "M2MCP.h"
 #include "socketBase.h"
 #include "systemConfig.h"
+#include <mutex>
+#include <thread>
+#include <atomic>
 
 class M2MTCP: public TCPServerSocket, public M2MC_CP
 {
@@ -50,21 +52,21 @@ class M2MTCP: public TCPServerSocket, public M2MC_CP
     public:
 
         virtual ~M2MTCP();
-        static M2MTCP *getMyInstance();
+        static M2MTCP *getMyInstance( unsigned short  port );
+        unsigned short getServerPort() { return serverPort; };
         // Prevent copying (fix -Weffc++ warnings)
         M2MTCP(const M2MTCP&) = delete;
         M2MTCP& operator=(const M2MTCP&) = delete;
 
         void startThread() override ;
         void handleExecption() override;
-        static void  *M2MTCPMain ( void *ptr);
-        static void  *newConnMain( void *ptr);
-
+         void  M2MTCPMain ( );
+         void  newConnMain();
         static void sigHandler(int signal, siginfo_t *si, void *arg);
         void init_exception();
 
         // Recreate Socket Server
-        void restartM2MTCP();
+        void restartServer();
         //
         void setRemoteIP ( std::string remote) { remoteIP=remote; };
         void setRemotePort (int port ) { remotePort = port; };
@@ -74,31 +76,35 @@ class M2MTCP: public TCPServerSocket, public M2MC_CP
         void m2Mrespond( string response) override;
         //
         void closeConnection();
-
+        void m2mCloseServerConnection();
         //
         bool isRunning() { return isrunning;};
+        void setRunning ( bool halt) { isrunning = halt;};
 
         TCPSocket * getTcpConn() { return newConn; };
         void setNewConnection (TCPSocket  *conn) { newConn=conn ;} ;
 
         void stopConnection() { setRunning(false);};
+        void SetupServerSocket();
 
+        static std::mutex m2m_mutex;
     private:
         static M2MTCP   *myInstance; // Single Instance of this object
         bool   isrunning;
-        void setRunning ( bool halt) { isrunning = halt;};
-        unsigned short m2m_tcp_server_port;
         //
-        void SetupM2MTCPServer();
         std::string  remoteIP  ;
         int         remotePort;
         bool  connected;
         TCPSocket  *newConn;
-        M2MTCP();
-
-
+        M2MTCP(unsigned short  srvrPort);
+        int serverSocket;
+        int clientScoket;
+        unsigned short  serverPort;
         void m2mCloseConnection() override;
+
+        std::thread clientThread ;
+
 
 
 };
-#endif
+

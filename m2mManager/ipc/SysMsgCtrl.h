@@ -42,7 +42,7 @@ class  SysMsgCtrl : public M2MZeroMQ {
             statusIf = pStatusReqIface;
         }
         std::string  getSysTemps();
-        bool  getNotificationMsg(std::string &reply);
+        bool  getNotificationMsg(std::string &reply) noexcept;
  private:
         std::unordered_map<std::string, std::string> m2mToMessage;
         string processReplyMsg(const string messageType, float val, string &result);

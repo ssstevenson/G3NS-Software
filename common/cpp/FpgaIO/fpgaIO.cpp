@@ -1,5 +1,6 @@
 #include <iostream>
 #include <unistd.h>
+#include <time.h>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wconversion"
@@ -8,6 +9,7 @@
 #pragma GCC diagnostic ignored  "-Wreorder"
 
 #include "fpgaIO.h"
+
 
 FpgaIO::FpgaIO(unsigned int  baseAddr, size_t size)
     : fd{-1},
@@ -112,7 +114,11 @@ void FpgaIO::fpgaInitSharedMutex()
                 pthread_mutexattr_init(&attr);
                 pthread_mutexattr_setpshared(&attr, PTHREAD_PROCESS_SHARED);
                 pthread_mutexattr_setrobust(&attr, PTHREAD_MUTEX_ROBUST);
-                pthread_mutex_init(&sharedMutex->mutex, &attr);
+                pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+                if (pthread_mutex_init(&sharedMutex->mutex, &attr) != 0 )
+                {
+                    syslog(LOG_ERR, " [%s] pthread_mutex_init failed!", __FUNCTION__);
+                }
                 pthread_mutexattr_destroy(&attr);
                  __sync_synchronize();
                 sharedMutex->initialized = 1;
@@ -124,9 +130,14 @@ void FpgaIO::fpgaInitSharedMutex()
                 while (sharedMutex->initialized != 1 )
                 {
                     usleep(500);
-                    if ( retries -- <= 0 ) break;  /* Should never happen unless process  creator crashes */
+                    if ( retries -- <= 0 )
+                    {
+                        syslog(LOG_ERR, "[%s]---> Unable to Create FPGA MUTEX \n", __FUNCTION__ );
+                        break;  /* Should never happen unless process  creator crashes */
+                    }
                 }
             }
+
         }
         else
         {
@@ -149,35 +160,52 @@ unsigned int  FpgaIO::readReg ( unsigned int  regOffset )
     unsigned int   value = 0xFFFFFFFF;
 
    //
-   if ( validateRegOffset(regOffset) )
-   {
+    if ( validateRegOffset(regOffset) )
+    {
        //
+
         unsigned int *regAddress = reinterpret_cast < unsigned int *> ( (fpgaMappedMemByte + regOffset) );
         volatile unsigned  int   *reg = reinterpret_cast <  volatile unsigned int  *> (regAddress);
-        dbgprintf("[%s]---> reading from Register Offset [=0x%x --abs = 0x%x ]\n", __FUNCTION__,regOffset, regAddress );
-        int lock_status = pthread_mutex_lock(&sharedMutex->mutex);
+
+        struct timespec ts;
+        // Set timeout to 500ms from now
+        clock_gettime(CLOCK_REALTIME, &ts);
+        ts.tv_nsec += 500000000;
+        if (ts.tv_nsec >= 1000000000) {
+            ts.tv_sec += 1;
+            ts.tv_nsec -= 1000000000;
+        }
+
+        int lock_status = pthread_mutex_timedlock(&sharedMutex->mutex, &ts);
+
+        if (lock_status == ETIMEDOUT) {
+            syslog(LOG_ERR, "[FPGAIO %s] Mutex Timeout! Hardware or Lock stuck.", __FUNCTION__);
+            return 0xFFFFFFFF;
+        }
+
+        // int lock_status = pthread_mutex_lock(&sharedMutex->mutex);
         if (lock_status == 0 || lock_status == EOWNERDEAD)
         {
             if (lock_status == EOWNERDEAD)
             {
-                syslog(LOG_WARNING, "[%s]---> Mutex owner issues--Making it consistent.", __FUNCTION__);
+                syslog(LOG_WARNING, "[FPGAIO %s]---> Mutex owner issues--Making it consistent.", __FUNCTION__);
                 pthread_mutex_consistent(&sharedMutex->mutex);
             }
             value =  *reg;
-            pthread_mutex_unlock(&sharedMutex->mutex);
         }
         else
         {
             // Handle other lock issues
-            syslog(LOG_ERR, "[%s]---> Mutex lock failed with status %d", __FUNCTION__, lock_status);
+            syslog(LOG_ERR, "[FPGAIO %s]---> Mutex lock failed with status %d", __FUNCTION__, lock_status);
         }
-   }
-   else
-   {
+        pthread_mutex_unlock(&sharedMutex->mutex);
+    }
+    else
+    {
        syslog(LOG_ERR, "[%s]---> !!! Failed   reading FPGA reg =0x%x !!!!!", __FUNCTION__,regOffset );
-   }
+    }
+     syslog(LOG_DEBUG, "[ FPGAIO %s]---> Reading [FPGA base = 0x%08x ] register Offset 0x%08x  ---Value=0x%08x", __FUNCTION__, fpgaAddr, regOffset, value );
 
-    syslog(LOG_DEBUG, "[%s]---> FPGA reg =0x%x -- Value=0x%x\n", __FUNCTION__,regOffset,value );
     return value;
 }
 //////
@@ -191,29 +219,32 @@ void  FpgaIO::writeReg ( unsigned int  regOffset, unsigned int   value )
         //
         unsigned int *regAddress = reinterpret_cast < unsigned int *> (  (fpgaMappedMemByte + regOffset) );
         volatile unsigned  int   *reg = reinterpret_cast <  volatile unsigned int  *> (regAddress);
-         dbgprintf("[%s]---> Writing 0x%x to  Register Offset [=0x%x --abs = 0x%x ]\n", __FUNCTION__,value, regOffset, regAddress );
         int lock_status = pthread_mutex_lock(&sharedMutex->mutex);
         if (lock_status == 0 || lock_status == EOWNERDEAD)
         {
             if (lock_status == EOWNERDEAD)
             {
-                syslog(LOG_WARNING, "[%s]---> Mutex owner issues--Making it consistent.", __FUNCTION__);
+                syslog(LOG_WARNING, "[FPGAIO %s]---> Mutex owner issues--Making it consistent.", __FUNCTION__);
                 pthread_mutex_consistent(&sharedMutex->mutex);
             }
             *reg = value;
-            pthread_mutex_unlock(&sharedMutex->mutex);
         }
         else
         {
             // Handle other lock issues
-            syslog(LOG_ERR, "[%s]---> Mutex lock failed with status %d", __FUNCTION__, lock_status);
+            syslog(LOG_ERR, "[FPGAIO %s]---> Mutex lock failed with status %d", __FUNCTION__, lock_status);
         }
+
+        pthread_mutex_unlock(&sharedMutex->mutex);
+
     }
     else
     {
-        syslog(LOG_ERR, "[%s]---> !!! Failed   reading FPGA reg =0x%x !!!!!", __FUNCTION__,regOffset );
+        syslog(LOG_ERR, "[FPGAIO %s]---> !!! Failed   reading FPGA reg =0x%x !!!!!", __FUNCTION__,regOffset );
     }
-    syslog(LOG_DEBUG, "[%s]---> FPGA reg =0x%x -- Value=0x%x\n", __FUNCTION__,regOffset,value );
+
+    syslog(LOG_DEBUG, "[ FPGAIO %s]---> [FPGA base = 0x%08x ]  writing 0x%08x  to register Offset 0x%08x ", __FUNCTION__, fpgaAddr, value, regOffset );
+
 
 }
 //
@@ -222,7 +253,7 @@ void  FpgaIO::writeReg ( unsigned int  regOffset, unsigned int   value )
 void FpgaIO::writeReg ( unsigned int  regOffset, unsigned int  Newvalue, unsigned int  mask )
 {
      unsigned int *regAddress = reinterpret_cast < unsigned int *> (  (fpgaMappedMemByte + regOffset) );
-
+    unsigned int  value = 0;
     if ( validateRegOffset(regOffset) )
     {
         volatile unsigned  int   *reg = reinterpret_cast < volatile unsigned int  *> (regAddress);
@@ -231,26 +262,28 @@ void FpgaIO::writeReg ( unsigned int  regOffset, unsigned int  Newvalue, unsigne
         {
             if (lock_status == EOWNERDEAD)
             {
-                syslog(LOG_WARNING, "[%s]---> Mutex owner issues--Making it consistent.", __FUNCTION__);
+                syslog(LOG_WARNING, "[FPGAIO %s]---> Mutex owner issues--Making it consistent.", __FUNCTION__);
                 pthread_mutex_consistent(&sharedMutex->mutex);
             }
-            unsigned int  value = *reg;
-            value &=  ~mask; // clear all bit fields
-            value |=  (Newvalue & mask) ;  // Add new value and apply mask
+            value = *reg;
+            value &=  ~mask;   // clear all bit fields
+            value |=  (Newvalue & mask) ;   // Add new value and apply mask
             *reg = value;
-            pthread_mutex_unlock(&sharedMutex->mutex);
+
         }
         else
         {
             // Handle other lock issues
-            syslog(LOG_ERR, "[%s]---> Mutex lock failed with status %d", __FUNCTION__, lock_status);
+            syslog(LOG_ERR, "[FPGAIO %s]---> Mutex lock failed with status %d", __FUNCTION__, lock_status);
         }
+
+        pthread_mutex_unlock(&sharedMutex->mutex);
     }
     else
     {
         perror(" FpgaIO::writeReg(...,Mask)-->sharedMutex: ");
     }
-    syslog(LOG_DEBUG, "[%s]---> FPGA reg =0x%x -- Value=0x%x -- Mask=0x%xn", __FUNCTION__,regOffset,Newvalue, mask );
+    syslog(LOG_DEBUG, "[ FPGAIO %s]---> [FPGA base = 0x%08x ]  writing 0x%08x  to register 0x%08x [ Mask=0x%08x ]  ", __FUNCTION__, fpgaAddr, value, regOffset, mask  );
 }
 //
 //
@@ -259,33 +292,34 @@ void FpgaIO::setRegBits ( unsigned int  regOffset, unsigned int  bitMask )
 {
     unsigned int *regAddress = reinterpret_cast < unsigned int *> (  (fpgaMappedMemByte + regOffset) );
     //
-      if ( validateRegOffset(regOffset) )
-      {
-          volatile unsigned  int   *reg = reinterpret_cast < volatile unsigned int  *> (regAddress);
-          int lock_status = pthread_mutex_lock(&sharedMutex->mutex);
-          if (lock_status == 0 || lock_status == EOWNERDEAD)
-          {
-              if (lock_status == EOWNERDEAD)
-              {
-                  syslog(LOG_WARNING, "[%s]---> Mutex owner issues--Making it consistent.", __FUNCTION__);
-                  pthread_mutex_consistent(&sharedMutex->mutex);
-              }
-              unsigned int  value = *reg;
-              value &=  ~bitMask; // clear all bit fields
-              value |=  bitMask;  // set  all bit fields
-              *reg = value;
-              pthread_mutex_unlock(&sharedMutex->mutex);
-          }
-          else
-          {
-              // Handle other lock issues
-              syslog(LOG_ERR, "[%s]---> Mutex lock failed with status %d", __FUNCTION__, lock_status);
-          }
-      }
-      else
-      {
-          perror(" FpgaIO::writeReg()-->sharedMutex: ");
-      }
+    if ( validateRegOffset(regOffset) )
+    {
+        volatile unsigned  int   *reg = reinterpret_cast < volatile unsigned int  *> (regAddress);
+        int lock_status = pthread_mutex_lock(&sharedMutex->mutex);
+        if (lock_status == 0 || lock_status == EOWNERDEAD)
+        {
+            if (lock_status == EOWNERDEAD)
+        {
+            syslog(LOG_WARNING, "[%s]---> Mutex owner issues--Making it consistent.", __FUNCTION__);
+            pthread_mutex_consistent(&sharedMutex->mutex);
+        }
+        unsigned int  value = *reg;
+        value &=  ~bitMask; // clear all bit fields
+        value |=  bitMask;  // set  all bit fields
+        *reg = value;
+
+        }
+        else
+        {
+            // Handle other lock issues
+            syslog(LOG_ERR, "[%s]---> Mutex lock failed with status %d", __FUNCTION__, lock_status);
+        }
+        pthread_mutex_unlock(&sharedMutex->mutex);
+    }
+    else
+    {
+    perror(" FpgaIO::writeReg()-->sharedMutex: ");
+    }
 
 }
 void FpgaIO::clearRegBits ( unsigned int  regOffset, unsigned int  bitMask )
@@ -293,7 +327,7 @@ void FpgaIO::clearRegBits ( unsigned int  regOffset, unsigned int  bitMask )
     unsigned int regAddress = static_cast < unsigned int > ( reinterpret_cast<std::uintptr_t> (fpgaMappedMemByte + regOffset) );
     //
     if ( validateRegOffset(regOffset) )
-     {
+    {
         volatile unsigned  int   *reg = reinterpret_cast < volatile unsigned int  *> (regAddress);
         int lock_status = pthread_mutex_lock(&sharedMutex->mutex);
         if (lock_status == 0 || lock_status == EOWNERDEAD)
@@ -308,12 +342,15 @@ void FpgaIO::clearRegBits ( unsigned int  regOffset, unsigned int  bitMask )
             value &=  ~bitMask; // clear all bit fields
             *reg = value;
 
-            pthread_mutex_unlock(&sharedMutex->mutex);
+
         }
+        else
         {
             // Handle other lock issues
             syslog(LOG_ERR, "[%s]---> Mutex lock failed with status %d", __FUNCTION__, lock_status);
         }
+
+        pthread_mutex_unlock(&sharedMutex->mutex);
     }
     else
     {

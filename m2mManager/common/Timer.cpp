@@ -26,7 +26,7 @@ Timer  *Timer::getMyInstance()
 }
 
 Timer::Timer( int time_ms,   TIMER_HANLER  timeHandler):BaseTimer(timeHandler,0,time_ms)
-    ,timer_time(time_ms),timerAccessLock(),rtxCount(0),myThread(),mutex()
+    ,timer_time(time_ms),timerAccessLock(),rtxCount(0),timerThread(),mutex()
 {
     rtxCount = 0;
     if (pthread_mutex_init(&timerAccessLock, NULL))
@@ -49,7 +49,7 @@ Timer::~Timer()
 void Timer::startThread()
 {
     printf(".......starting Timer Thread for MO(time..)  .......\n");
-    pthread_create (&myThread, NULL,  timerMain, static_cast <void *> (this) );
+    pthread_create (&timerThread, NULL,  timerMain, static_cast <void *> (this) );
 }
 
 void  *Timer::timerMain ( void *ptr)

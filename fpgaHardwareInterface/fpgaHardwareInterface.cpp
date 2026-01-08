@@ -2,6 +2,7 @@
 #include <heartbeatResponse/heartbeatResponse.h>
 #include <helpers/mainHelper.h>
 #include <logger/logger.h>
+#include <syslog.h>
 
 /**
  * @brief      FPGA Hardware Interface Main Function
@@ -10,6 +11,7 @@
  */
 int main()
 {
+    openlog("FpgaHwInterface", LOG_PID | LOG_CONS, LOG_LOCAL0);
     zmq::context_t zmqCtx{1};
     empower::configManagerConnection configIf{zmqCtx};
     empower::logger::getInst().setup(zmqCtx, PROCESS_NAME);
